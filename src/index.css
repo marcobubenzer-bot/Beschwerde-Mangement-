@@ -8,6 +8,7 @@
   --muted: #6b7280;
   --primary: #6a6af4;
   --primary-soft: #eef1ff;
+  --accent: #1f2a44;
   --border: #e3e7ef;
   --shadow: 0 8px 24px rgba(31, 42, 68, 0.06);
   --danger: #b42318;
@@ -24,6 +25,7 @@
   --muted: #cbd5f5;
   --primary: #8b8bff;
   --primary-soft: rgba(139, 139, 255, 0.2);
+  --accent: #f9fafb;
   --border: #374151;
   --shadow: 0 8px 24px rgba(15, 23, 42, 0.4);
   --danger: #fda4af;
@@ -91,24 +93,44 @@ a {
   align-items: center;
 }
 
-.brand-icon {
+.brand-logo {
   width: 48px;
   height: 48px;
-  border-radius: 16px;
-  background: var(--primary);
-  color: white;
+  border-radius: 12px;
+  background: var(--primary-soft);
   display: grid;
   place-items: center;
-  font-weight: 700;
-  font-size: 18px;
+  overflow: hidden;
 }
 
-.brand h1 {
+.brand-logo svg {
+  height: 32px;
+  width: auto;
+  max-width: 120px;
+  object-fit: contain;
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.brand-title {
   margin: 0;
   font-size: 20px;
+  color: var(--accent);
 }
 
-.brand p {
+.brand-org {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.brand-subtitle {
   margin: 4px 0 0;
   color: var(--muted);
   font-size: 12px;
@@ -195,6 +217,12 @@ a {
 .auth-card {
   max-width: 420px;
   margin: 40px auto;
+}
+
+.auth-header {
+  display: flex;
+  justify-content: center;
+  margin-top: 32px;
 }
 
 .kpi-grid {
@@ -327,6 +355,11 @@ textarea {
 
 .form-error {
   color: var(--danger);
+  font-weight: 600;
+}
+
+.form-warning {
+  color: var(--warning);
   font-weight: 600;
 }
 
@@ -551,6 +584,40 @@ tr {
   gap: 12px;
   align-items: center;
   flex-wrap: wrap;
+}
+
+.branding-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.color-row {
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  gap: 12px;
+  align-items: center;
+}
+
+.branding-preview {
+  margin-bottom: 16px;
+}
+
+.branding-preview-box {
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 72px;
+}
+
+.branding-preview-box svg {
+  height: 36px;
+  width: auto;
+  max-width: 160px;
 }
 
 @media (max-width: 960px) {
