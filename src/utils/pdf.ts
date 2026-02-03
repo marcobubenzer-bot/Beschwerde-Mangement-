@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Complaint, ComplaintAttachment } from '../types/complaint';
+import { getBranding } from '../storage/brandingRepository';
 import { formatDate, formatDateTime } from './date';
 
 const blobToDataUrl = (blob: Blob) =>
@@ -11,16 +12,28 @@ const blobToDataUrl = (blob: Blob) =>
     reader.readAsDataURL(blob);
   });
 
+const addBrandingHeader = (doc: jsPDF, title: string) => {
+  const branding = getBranding();
+  let currentY = 20;
+  if (branding.showBranding && branding.organizationName) {
+    doc.setFontSize(12);
+    doc.text(branding.organizationName, 14, 14);
+    currentY = 24;
+  }
+  doc.setFontSize(18);
+  doc.text(title, 14, currentY);
+  return currentY;
+};
+
 export const exportComplaintPdf = async (complaint: Complaint, attachments: ComplaintAttachment[]) => {
   const doc = new jsPDF();
-  doc.setFontSize(18);
-  doc.text('KlinikBeschwerde – Fallblatt', 14, 20);
+  const titleY = addBrandingHeader(doc, 'KlinikBeschwerde – Fallblatt');
   doc.setFontSize(11);
-  doc.text(`Vorgangsnummer: ${complaint.caseNumber}`, 14, 30);
-  doc.text(`Erstellt am: ${formatDateTime(complaint.createdAt)}`, 14, 36);
+  doc.text(`Vorgangsnummer: ${complaint.caseNumber}`, 14, titleY + 10);
+  doc.text(`Erstellt am: ${formatDateTime(complaint.createdAt)}`, 14, titleY + 16);
 
   autoTable(doc, {
-    startY: 42,
+    startY: titleY + 22,
     head: [['Feld', 'Wert']],
     body: [
       ['Status', complaint.status],
@@ -96,19 +109,19 @@ export const exportDashboardPdf = ({
   tables: Array<{ title: string; head: string[]; body: Array<(string | number)[]> }>;
 }) => {
   const doc = new jsPDF();
-  doc.setFontSize(18);
-  doc.text(title, 14, 20);
+  const titleY = addBrandingHeader(doc, title);
   doc.setFontSize(11);
-  doc.text(`Erstellt am: ${formatDateTime(new Date().toISOString())}`, 14, 28);
-  doc.text(`Filter: ${filters.length ? filters.join(', ') : 'Keine'}`, 14, 34);
+  doc.text(`Erstellt am: ${formatDateTime(new Date().toISOString())}`, 14, titleY + 8);
+  doc.text(`Filter: ${filters.length ? filters.join(', ') : 'Keine'}`, 14, titleY + 14);
 
   autoTable(doc, {
-    startY: 40,
+    startY: titleY + 20,
     head: [['Kennzahl', 'Wert']],
     body: kpis.map((kpi) => [kpi.label, String(kpi.value)]),
   });
 
-  let currentY = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || 60;
+  let currentY =
+    (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || titleY + 40;
 
   tables.forEach((table) => {
     currentY += 12;
@@ -135,13 +148,12 @@ export const exportListPdf = ({
   complaints: Complaint[];
 }) => {
   const doc = new jsPDF('landscape');
-  doc.setFontSize(18);
-  doc.text(title, 14, 18);
+  const titleY = addBrandingHeader(doc, title);
   doc.setFontSize(11);
-  doc.text(`Filter: ${filters.length ? filters.join(', ') : 'Keine'}`, 14, 26);
+  doc.text(`Filter: ${filters.length ? filters.join(', ') : 'Keine'}`, 14, titleY + 8);
 
   autoTable(doc, {
-    startY: 32,
+    startY: titleY + 14,
     head: [['Vorgang', 'Status', 'Kategorie', 'Priorität', 'Standort', 'Abteilung', 'Datum']],
     body: complaints.map((complaint) => [
       complaint.caseNumber,

@@ -1,10 +1,13 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { complaintRepository } from '../storage/indexedDbComplaintRepository';
 import { attachmentRepository } from '../storage/attachmentRepository';
 import { loadSettings, saveSettings } from '../storage/settingsRepository';
 import { createSampleComplaints } from '../utils/sampleData';
 import { Complaint } from '../types/complaint';
 import { getAdminPin, setAdminPin } from '../services/authService';
+import { useBranding } from '../context/BrandingContext';
+import { defaultBranding } from '../storage/brandingRepository';
+import { isValidHexColor, isValidSvgString } from '../utils/branding';
 
 const SettingsPage = () => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -12,6 +15,14 @@ const SettingsPage = () => {
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
   const [pin, setPin] = useState(getAdminPin());
+  const { branding, saveBranding, resetBranding } = useBranding();
+  const [brandingDraft, setBrandingDraft] = useState(branding);
+  const [brandingMessage, setBrandingMessage] = useState('');
+  const [brandingWarning, setBrandingWarning] = useState('');
+
+  useEffect(() => {
+    setBrandingDraft(branding);
+  }, [branding]);
 
   const updateList = (field: 'locations' | 'departments' | 'categories', value: string) => {
     const items = value
@@ -83,6 +94,45 @@ const SettingsPage = () => {
   const handlePinSave = () => {
     setAdminPin(pin);
     setMessage('Admin-PIN gespeichert.');
+  };
+
+  const handleLogoUpload = async (file?: File) => {
+    if (!file) return;
+    const allowedTypes = ['image/svg+xml', 'text/plain', 'application/xml', 'text/xml'];
+    if (!allowedTypes.includes(file.type) && !file.name.endsWith('.svg')) {
+      setBrandingWarning('Bitte nur SVG-Dateien hochladen.');
+      return;
+    }
+    const text = await file.text();
+    setBrandingDraft((current) => ({ ...current, logoSvg: text }));
+    if (!isValidSvgString(text)) {
+      setBrandingWarning('Das hochgeladene SVG ist ungültig.');
+    } else {
+      setBrandingWarning('');
+    }
+  };
+
+  const handleBrandingSave = () => {
+    const next = {
+      ...brandingDraft,
+      organizationName: brandingDraft.organizationName.trim(),
+      primaryColor: isValidHexColor(brandingDraft.primaryColor) ? brandingDraft.primaryColor : defaultBranding.primaryColor,
+      accentColor: isValidHexColor(brandingDraft.accentColor) ? brandingDraft.accentColor : defaultBranding.accentColor,
+    };
+    if (next.showBranding && next.logoSvg && !isValidSvgString(next.logoSvg)) {
+      setBrandingWarning('Branding ist aktiv, aber das SVG-Logo ist ungültig.');
+    } else {
+      setBrandingWarning('');
+    }
+    saveBranding(next);
+    setBrandingMessage('Branding gespeichert.');
+  };
+
+  const handleBrandingReset = () => {
+    resetBranding();
+    setBrandingDraft(defaultBranding);
+    setBrandingWarning('');
+    setBrandingMessage('Branding auf Standard zurückgesetzt.');
   };
 
   const hints = useMemo(
@@ -179,6 +229,106 @@ const SettingsPage = () => {
           />
           <button className="button ghost" type="button" onClick={handlePinSave}>
             PIN speichern
+          </button>
+        </div>
+      </div>
+
+      <div className="card">
+        <h3>Branding</h3>
+        <div className="branding-grid">
+          <label>
+            Organisation / Krankenhausname
+            <input
+              type="text"
+              value={brandingDraft.organizationName}
+              onChange={(event) => setBrandingDraft((current) => ({ ...current, organizationName: event.target.value }))}
+              placeholder="z. B. Klinikum Beispielstadt"
+            />
+          </label>
+          <label className="checkbox">
+            <input
+              type="checkbox"
+              checked={brandingDraft.showBranding}
+              onChange={(event) => setBrandingDraft((current) => ({ ...current, showBranding: event.target.checked }))}
+            />
+            Branding aktivieren
+          </label>
+        </div>
+        <div className="branding-grid">
+          <label>
+            Primary Color
+            <div className="color-row">
+              <input
+                type="color"
+                value={isValidHexColor(brandingDraft.primaryColor) ? brandingDraft.primaryColor : defaultBranding.primaryColor}
+                onChange={(event) => setBrandingDraft((current) => ({ ...current, primaryColor: event.target.value }))}
+                aria-label="Primary Color"
+              />
+              <input
+                type="text"
+                value={brandingDraft.primaryColor}
+                onChange={(event) => setBrandingDraft((current) => ({ ...current, primaryColor: event.target.value }))}
+                placeholder="#6a6af4"
+              />
+            </div>
+          </label>
+          <label>
+            Accent Color
+            <div className="color-row">
+              <input
+                type="color"
+                value={isValidHexColor(brandingDraft.accentColor) ? brandingDraft.accentColor : defaultBranding.accentColor}
+                onChange={(event) => setBrandingDraft((current) => ({ ...current, accentColor: event.target.value }))}
+                aria-label="Accent Color"
+              />
+              <input
+                type="text"
+                value={brandingDraft.accentColor}
+                onChange={(event) => setBrandingDraft((current) => ({ ...current, accentColor: event.target.value }))}
+                placeholder="#1f2a44"
+              />
+            </div>
+          </label>
+        </div>
+        <div className="branding-grid">
+          <label>
+            Logo (SVG Upload)
+            <input
+              type="file"
+              accept="image/svg+xml,text/plain,application/xml,text/xml"
+              onChange={(event) => handleLogoUpload(event.target.files?.[0])}
+            />
+          </label>
+          <label>
+            SVG Code einfügen
+            <textarea
+              rows={6}
+              value={brandingDraft.logoSvg}
+              onChange={(event) => setBrandingDraft((current) => ({ ...current, logoSvg: event.target.value }))}
+              placeholder="<svg>...</svg>"
+            />
+          </label>
+        </div>
+        <div className="branding-preview">
+          <p className="muted">Logo-Vorschau</p>
+          {brandingDraft.logoSvg && isValidSvgString(brandingDraft.logoSvg) ? (
+            <div
+              className="branding-preview-box"
+              dangerouslySetInnerHTML={{ __html: brandingDraft.logoSvg }}
+              aria-hidden="true"
+            />
+          ) : (
+            <p className="muted">Kein gültiges SVG hinterlegt.</p>
+          )}
+        </div>
+        {brandingWarning && <p className="form-warning">{brandingWarning}</p>}
+        {brandingMessage && <p className="success">{brandingMessage}</p>}
+        <div className="form-actions">
+          <button className="button primary" type="button" onClick={handleBrandingSave}>
+            Branding speichern
+          </button>
+          <button className="button ghost" type="button" onClick={handleBrandingReset}>
+            Auf Standard zurücksetzen
           </button>
         </div>
       </div>
