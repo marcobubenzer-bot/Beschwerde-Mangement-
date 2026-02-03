@@ -27,8 +27,12 @@ export interface ComplaintNote {
 
 export interface ComplaintAttachment {
   id: string;
-  label: string;
-  note?: string;
+  complaintId: string;
+  filename: string;
+  mimeType: string;
+  size: number;
+  createdAt: string;
+  blob: Blob;
 }
 
 export interface Complaint {
@@ -51,7 +55,7 @@ export interface Complaint {
   dueDate?: string;
   measures?: string;
   tags: string[];
-  attachments: ComplaintAttachment[];
+  attachmentIds: string[];
   notes: ComplaintNote[];
 }
 

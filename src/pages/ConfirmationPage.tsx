@@ -1,25 +1,36 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { complaintRepository } from '../storage/localStorageComplaintRepository';
-import { Complaint } from '../types/complaint';
+import { Link, useLocation, useParams } from 'react-router-dom';
+import { complaintRepository } from '../storage/indexedDbComplaintRepository';
+import { attachmentRepository } from '../storage/attachmentRepository';
+import { Complaint, ComplaintAttachment } from '../types/complaint';
 import { exportComplaintPdf } from '../utils/pdf';
 import { formatDateTime } from '../utils/date';
 
 const ConfirmationPage = () => {
   const { id } = useParams();
+  const location = useLocation();
   const [complaint, setComplaint] = useState<Complaint | null>(null);
+  const [attachments, setAttachments] = useState<ComplaintAttachment[]>([]);
+  const isAdminView = location.pathname.startsWith('/admin');
 
   useEffect(() => {
     if (!id) return;
-    complaintRepository.getById(id).then((data) => setComplaint(data ?? null));
+    complaintRepository.getById(id).then((data) => {
+      if (!data) {
+        setComplaint(null);
+        return;
+      }
+      setComplaint(data);
+      attachmentRepository.listByIds(data.attachmentIds).then(setAttachments);
+    });
   }, [id]);
 
   if (!complaint) {
     return (
       <div className="card">
         <h2>Vorgang nicht gefunden</h2>
-        <Link to="/complaints" className="button ghost">
-          Zurück zur Übersicht
+        <Link to="/report" className="button ghost">
+          Zurück zum Formular
         </Link>
       </div>
     );
@@ -39,17 +50,19 @@ const ConfirmationPage = () => {
             <span className="muted">Erstellt am</span>
             <h4>{formatDateTime(complaint.createdAt)}</h4>
           </div>
-          <button className="button primary" onClick={() => exportComplaintPdf(complaint)}>
+          <button className="button primary" onClick={() => void exportComplaintPdf(complaint, attachments)}>
             PDF Fallblatt exportieren
           </button>
         </div>
         <div className="confirmation-actions">
-          <Link to="/new" className="button ghost">
+          <Link to="/report" className="button ghost">
             Neue Beschwerde
           </Link>
-          <Link to="/complaints" className="button ghost">
-            Zur Vorgangsliste
-          </Link>
+          {isAdminView && (
+            <Link to="/admin/complaints" className="button ghost">
+              Zur Vorgangsliste
+            </Link>
+          )}
         </div>
       </div>
     </section>

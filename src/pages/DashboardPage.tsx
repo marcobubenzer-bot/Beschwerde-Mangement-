@@ -13,7 +13,7 @@ import {
 } from 'recharts';
 import FiltersPanel from '../components/FiltersPanel';
 import KpiCard from '../components/KpiCard';
-import { complaintRepository } from '../storage/localStorageComplaintRepository';
+import { complaintRepository } from '../storage/indexedDbComplaintRepository';
 import { loadSettings } from '../storage/settingsRepository';
 import { Complaint, ComplaintFilters } from '../types/complaint';
 import { applyFilters } from '../utils/filters';

@@ -46,7 +46,7 @@ export const createSampleComplaints = (count = 8): Complaint[] => {
       dueDate: new Date(now.getTime() + 1000 * 60 * 60 * 24 * 14).toISOString(),
       measures: 'Erste Analyse durchgeführt. Gespräch mit Stationsleitung geplant.',
       tags: ['Patientenzufriedenheit', 'Prozess'],
-      attachments: [{ id: uuidv4(), label: 'Notiz', note: 'Telefonische Meldung' }],
+      attachmentIds: [],
       notes: [
         {
           id: uuidv4(),

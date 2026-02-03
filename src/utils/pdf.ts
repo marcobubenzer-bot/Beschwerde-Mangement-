@@ -1,9 +1,17 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { Complaint } from '../types/complaint';
+import { Complaint, ComplaintAttachment } from '../types/complaint';
 import { formatDate, formatDateTime } from './date';
 
-export const exportComplaintPdf = (complaint: Complaint) => {
+const blobToDataUrl = (blob: Blob) =>
+  new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
+
+export const exportComplaintPdf = async (complaint: Complaint, attachments: ComplaintAttachment[]) => {
   const doc = new jsPDF();
   doc.setFontSize(18);
   doc.text('KlinikBeschwerde – Fallblatt', 14, 20);
@@ -31,16 +39,46 @@ export const exportComplaintPdf = (complaint: Complaint) => {
     ],
   });
 
-  const finalY = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || 120;
-  doc.text('Beschreibung', 14, finalY + 10);
+  const baseY = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || 120;
+  doc.text('Beschreibung', 14, baseY + 10);
   doc.setFontSize(10);
-  doc.text(doc.splitTextToSize(complaint.description, 180), 14, finalY + 16);
+  doc.text(doc.splitTextToSize(complaint.description, 180), 14, baseY + 16);
 
+  let currentY = baseY + 36;
   if (complaint.measures) {
     doc.setFontSize(11);
-    doc.text('Maßnahmen / Notizen', 14, finalY + 40);
+    doc.text('Maßnahmen / Notizen', 14, currentY);
     doc.setFontSize(10);
-    doc.text(doc.splitTextToSize(complaint.measures, 180), 14, finalY + 46);
+    doc.text(doc.splitTextToSize(complaint.measures, 180), 14, currentY + 6);
+    currentY += 26;
+  }
+
+  autoTable(doc, {
+    startY: currentY + 6,
+    head: [['Anlage', 'Typ', 'Größe (KB)']],
+    body: attachments.length
+      ? attachments.map((item) => [item.filename, item.mimeType, String(Math.round(item.size / 1024))])
+      : [['Keine Anlagen', '—', '—']],
+  });
+
+  const imageAttachments = attachments.filter((item) => item.mimeType.startsWith('image/')).slice(0, 2);
+  if (imageAttachments.length) {
+    let imageY = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || currentY + 40;
+    doc.setFontSize(11);
+    doc.text('Bildvorschau (MVP)', 14, imageY + 10);
+    imageY += 16;
+    for (const attachment of imageAttachments) {
+      try {
+        const dataUrl = await blobToDataUrl(attachment.blob);
+        const format = attachment.mimeType.includes('png') ? 'PNG' : 'JPEG';
+        doc.addImage(dataUrl, format, 14, imageY, 60, 40);
+        doc.text(attachment.filename, 78, imageY + 6);
+        imageY += 46;
+      } catch {
+        doc.text(`Bild ${attachment.filename} konnte nicht eingebettet werden.`, 14, imageY + 6);
+        imageY += 12;
+      }
+    }
   }
 
   doc.save(`${complaint.caseNumber}_fallblatt.pdf`);

@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
-import { complaintRepository } from '../storage/localStorageComplaintRepository';
-import { Complaint, ComplaintStatus } from '../types/complaint';
+import { complaintRepository } from '../storage/indexedDbComplaintRepository';
+import { attachmentRepository } from '../storage/attachmentRepository';
+import { Complaint, ComplaintAttachment, ComplaintStatus } from '../types/complaint';
 import { exportComplaintPdf } from '../utils/pdf';
 import { formatDate, formatDateTime } from '../utils/date';
 
@@ -10,12 +11,32 @@ const ComplaintDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [complaint, setComplaint] = useState<Complaint | null>(null);
+  const [attachments, setAttachments] = useState<ComplaintAttachment[]>([]);
+  const [attachmentUrls, setAttachmentUrls] = useState<Record<string, string>>({});
   const [note, setNote] = useState('');
 
   useEffect(() => {
     if (!id) return;
-    complaintRepository.getById(id).then((data) => setComplaint(data ?? null));
+    complaintRepository.getById(id).then((data) => {
+      if (!data) {
+        setComplaint(null);
+        return;
+      }
+      setComplaint(data);
+      attachmentRepository.listByIds(data.attachmentIds).then(setAttachments);
+    });
   }, [id]);
+
+  useEffect(() => {
+    const nextUrls: Record<string, string> = {};
+    attachments.forEach((attachment) => {
+      nextUrls[attachment.id] = URL.createObjectURL(attachment.blob);
+    });
+    setAttachmentUrls(nextUrls);
+    return () => {
+      Object.values(nextUrls).forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [attachments]);
 
   const updateComplaint = async (updates: Partial<Complaint>) => {
     if (!complaint) return;
@@ -34,11 +55,19 @@ const ComplaintDetailPage = () => {
     setNote('');
   };
 
+  const handleRemoveAttachment = async (attachmentId: string) => {
+    if (!complaint) return;
+    await attachmentRepository.remove(attachmentId);
+    const nextIds = complaint.attachmentIds.filter((item) => item !== attachmentId);
+    await updateComplaint({ attachmentIds: nextIds });
+    setAttachments((prev) => prev.filter((item) => item.id !== attachmentId));
+  };
+
   if (!complaint) {
     return (
       <div className="card">
         <h2>Vorgang nicht gefunden</h2>
-        <Link to="/complaints" className="button ghost">
+        <Link to="/admin/complaints" className="button ghost">
           Zurück zur Übersicht
         </Link>
       </div>
@@ -53,10 +82,10 @@ const ComplaintDetailPage = () => {
           <p>Erstellt am {formatDateTime(complaint.createdAt)}</p>
         </div>
         <div className="header-actions">
-          <button className="button ghost" onClick={() => exportComplaintPdf(complaint)}>
+          <button className="button ghost" onClick={() => void exportComplaintPdf(complaint, attachments)}>
             PDF Fallblatt
           </button>
-          <button className="button ghost" onClick={() => navigate('/complaints')}>
+          <button className="button ghost" onClick={() => navigate('/admin/complaints')}>
             Zurück
           </button>
         </div>
@@ -171,19 +200,47 @@ const ComplaintDetailPage = () => {
               <strong>{complaint.tags.length ? complaint.tags.join(', ') : '—'}</strong>
             </li>
             <li>
-              <span>Anlagen</span>
-              <strong>
-                {complaint.attachments.length
-                  ? complaint.attachments.map((attachment) => attachment.label).join(', ')
-                  : '—'}
-              </strong>
-            </li>
-            <li>
               <span>Datenschutz-Einwilligung</span>
               <strong>{complaint.consent ? 'Ja' : 'Nein'}</strong>
             </li>
           </ul>
         </div>
+      </div>
+
+      <div className="card">
+        <h3>Anlagen</h3>
+        {attachments.length === 0 ? (
+          <p className="muted">Keine Anlagen hinterlegt.</p>
+        ) : (
+          <div className="attachment-grid">
+            {attachments.map((attachment) => {
+              const url = attachmentUrls[attachment.id];
+              return (
+                <div key={attachment.id} className="attachment-card">
+                  {url && <img src={url} alt={attachment.filename} />}
+                  <div>
+                    <p>{attachment.filename}</p>
+                    <span className="muted">{Math.round(attachment.size / 1024)} KB</span>
+                  </div>
+                  <div className="attachment-actions">
+                    {url && (
+                      <a href={url} download={attachment.filename} className="button ghost">
+                        Download
+                      </a>
+                    )}
+                    <button
+                      type="button"
+                      className="button danger"
+                      onClick={() => handleRemoveAttachment(attachment.id)}
+                    >
+                      Löschen
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </section>
   );

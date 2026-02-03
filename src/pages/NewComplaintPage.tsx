@@ -1,15 +1,27 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import TagInput from '../components/TagInput';
-import { complaintRepository } from '../storage/localStorageComplaintRepository';
+import { complaintRepository } from '../storage/indexedDbComplaintRepository';
+import { attachmentRepository } from '../storage/attachmentRepository';
 import { loadSettings } from '../storage/settingsRepository';
 import { generateCaseNumber } from '../services/caseNumberService';
 import { Complaint, ComplaintAttachment } from '../types/complaint';
 
-const NewComplaintPage = () => {
+interface NewComplaintPageProps {
+  mode: 'report' | 'admin';
+}
+
+interface AttachmentDraft {
+  id: string;
+  file: File;
+  previewUrl: string;
+}
+
+const NewComplaintPage = ({ mode }: NewComplaintPageProps) => {
   const navigate = useNavigate();
   const settings = useMemo(() => loadSettings(), []);
+  const isAdmin = mode === 'admin';
 
   const [form, setForm] = useState<Complaint>({
     id: uuidv4(),
@@ -31,10 +43,12 @@ const NewComplaintPage = () => {
     dueDate: '',
     measures: '',
     tags: [],
-    attachments: [],
+    attachmentIds: [],
     notes: [],
   });
 
+  const [drafts, setDrafts] = useState<AttachmentDraft[]>([]);
+  const draftsRef = useRef<AttachmentDraft[]>([]);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -46,11 +60,51 @@ const NewComplaintPage = () => {
     }));
   }, [settings]);
 
-  const handleAttachmentAdd = () => {
-    const label = prompt('Dateiname / Hinweis zur Anlage');
-    if (!label) return;
-    const attachment: ComplaintAttachment = { id: uuidv4(), label };
-    setForm((prev) => ({ ...prev, attachments: [...prev.attachments, attachment] }));
+  useEffect(() => {
+    draftsRef.current = drafts;
+  }, [drafts]);
+
+  useEffect(() => {
+    return () => {
+      draftsRef.current.forEach((draft) => URL.revokeObjectURL(draft.previewUrl));
+    };
+  }, []);
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!event.target.files) return;
+    const nextDrafts = Array.from(event.target.files).map((file) => ({
+      id: uuidv4(),
+      file,
+      previewUrl: URL.createObjectURL(file),
+    }));
+    setDrafts((prev) => [...prev, ...nextDrafts]);
+    event.target.value = '';
+  };
+
+  const removeDraft = (id: string) => {
+    setDrafts((prev) => {
+      const target = prev.find((item) => item.id === id);
+      if (target) URL.revokeObjectURL(target.previewUrl);
+      return prev.filter((item) => item.id !== id);
+    });
+  };
+
+  const persistAttachments = async (complaintId: string) => {
+    const storedIds: string[] = [];
+    for (const draft of drafts) {
+      const attachment: ComplaintAttachment = {
+        id: draft.id,
+        complaintId,
+        filename: draft.file.name,
+        mimeType: draft.file.type,
+        size: draft.file.size,
+        createdAt: new Date().toISOString(),
+        blob: draft.file,
+      };
+      await attachmentRepository.create(attachment);
+      storedIds.push(draft.id);
+    }
+    return storedIds;
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -64,6 +118,7 @@ const NewComplaintPage = () => {
       return;
     }
     setError('');
+    const attachmentIds = await persistAttachments(form.id);
     const complaint: Complaint = {
       ...form,
       reporterName: form.reporterName?.trim() || undefined,
@@ -72,16 +127,17 @@ const NewComplaintPage = () => {
       owner: form.owner?.trim() || undefined,
       dueDate: form.dueDate || undefined,
       measures: form.measures?.trim() || undefined,
+      attachmentIds,
     };
     await complaintRepository.create(complaint);
-    navigate(`/confirmation/${complaint.id}`);
+    navigate(mode === 'report' ? `/report/confirmation/${complaint.id}` : `/admin/confirmation/${complaint.id}`);
   };
 
   return (
     <section>
       <header className="page-header">
         <div>
-          <h2>Neue Beschwerde</h2>
+          <h2>{isAdmin ? 'Neue Beschwerde' : 'Beschwerde einreichen'}</h2>
           <p>Alle Pflichtfelder sind markiert. Freundliche Hinweise helfen beim Ausfüllen.</p>
         </div>
         <div className="case-number">Vorgangsnummer: {form.caseNumber}</div>
@@ -219,61 +275,73 @@ const NewComplaintPage = () => {
             placeholder="z. B. Wartezeit, Service"
           />
           <div className="attachment">
-            <button type="button" className="button ghost" onClick={handleAttachmentAdd}>
-              Anlage hinzufügen
-            </button>
-            {form.attachments.length > 0 && (
-              <ul>
-                {form.attachments.map((attachment) => (
-                  <li key={attachment.id}>{attachment.label}</li>
+            <label>
+              Anlagen hinzufügen (Bilder)
+              <input type="file" accept="image/png, image/jpeg, image/webp" multiple onChange={handleFileChange} />
+            </label>
+            {drafts.length > 0 && (
+              <div className="attachment-grid">
+                {drafts.map((draft) => (
+                  <div key={draft.id} className="attachment-card">
+                    <img src={draft.previewUrl} alt={draft.file.name} />
+                    <div>
+                      <p>{draft.file.name}</p>
+                      <span className="muted">{Math.round(draft.file.size / 1024)} KB</span>
+                    </div>
+                    <button type="button" className="button ghost" onClick={() => removeDraft(draft.id)}>
+                      Entfernen
+                    </button>
+                  </div>
                 ))}
-              </ul>
+              </div>
             )}
           </div>
         </div>
 
-        <div className="card form-section">
-          <h3>Bearbeitung</h3>
-          <div className="grid-2">
+        {isAdmin && (
+          <div className="card form-section">
+            <h3>Bearbeitung</h3>
+            <div className="grid-2">
+              <label>
+                Status
+                <select
+                  value={form.status}
+                  onChange={(event) => setForm({ ...form, status: event.target.value as Complaint['status'] })}
+                >
+                  <option value="Neu">Neu</option>
+                  <option value="In Prüfung">In Prüfung</option>
+                  <option value="Rückfrage">Rückfrage</option>
+                  <option value="In Bearbeitung">In Bearbeitung</option>
+                  <option value="Gelöst">Gelöst</option>
+                  <option value="Abgelehnt">Abgelehnt</option>
+                </select>
+              </label>
+              <label>
+                Verantwortliche Person (optional)
+                <input
+                  value={form.owner}
+                  onChange={(event) => setForm({ ...form, owner: event.target.value })}
+                />
+              </label>
+              <label>
+                Frist (optional)
+                <input
+                  type="date"
+                  value={form.dueDate}
+                  onChange={(event) => setForm({ ...form, dueDate: event.target.value })}
+                />
+              </label>
+            </div>
             <label>
-              Status
-              <select
-                value={form.status}
-                onChange={(event) => setForm({ ...form, status: event.target.value as Complaint['status'] })}
-              >
-                <option value="Neu">Neu</option>
-                <option value="In Prüfung">In Prüfung</option>
-                <option value="Rückfrage">Rückfrage</option>
-                <option value="In Bearbeitung">In Bearbeitung</option>
-                <option value="Gelöst">Gelöst</option>
-                <option value="Abgelehnt">Abgelehnt</option>
-              </select>
-            </label>
-            <label>
-              Verantwortliche Person (optional)
-              <input
-                value={form.owner}
-                onChange={(event) => setForm({ ...form, owner: event.target.value })}
-              />
-            </label>
-            <label>
-              Frist (optional)
-              <input
-                type="date"
-                value={form.dueDate}
-                onChange={(event) => setForm({ ...form, dueDate: event.target.value })}
+              Maßnahmen / Notizen (optional)
+              <textarea
+                value={form.measures}
+                onChange={(event) => setForm({ ...form, measures: event.target.value })}
+                rows={4}
               />
             </label>
           </div>
-          <label>
-            Maßnahmen / Notizen (optional)
-            <textarea
-              value={form.measures}
-              onChange={(event) => setForm({ ...form, measures: event.target.value })}
-              rows={4}
-            />
-          </label>
-        </div>
+        )}
 
         <div className="card form-section">
           <label className="checkbox">
@@ -295,7 +363,11 @@ const NewComplaintPage = () => {
           <button
             type="button"
             className="button ghost"
-            onClick={() => setForm({ ...form, description: '', measures: '', tags: [], attachments: [] })}
+            onClick={() => {
+              drafts.forEach((draft) => URL.revokeObjectURL(draft.previewUrl));
+              setDrafts([]);
+              setForm({ ...form, description: '', measures: '', tags: [], attachmentIds: [] });
+            }}
           >
             Formular leeren
           </button>

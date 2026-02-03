@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ComplaintTable from '../components/ComplaintTable';
 import FiltersPanel from '../components/FiltersPanel';
-import { complaintRepository } from '../storage/localStorageComplaintRepository';
+import { complaintRepository } from '../storage/indexedDbComplaintRepository';
 import { loadSettings } from '../storage/settingsRepository';
 import { Complaint, ComplaintFilters } from '../types/complaint';
 import { applyFilters } from '../utils/filters';
@@ -58,7 +58,9 @@ const ComplaintsPage = () => {
           <button
             type="button"
             className="button ghost"
-            onClick={() => exportListPdf({ title: 'KlinikBeschwerde – Vorgangsliste', filters: activeFilters, complaints: filtered })}
+            onClick={() =>
+              exportListPdf({ title: 'KlinikBeschwerde – Vorgangsliste', filters: activeFilters, complaints: filtered })
+            }
           >
             Liste als PDF
           </button>
@@ -67,7 +69,7 @@ const ComplaintsPage = () => {
 
       <FiltersPanel filters={filters} categories={settings.categories} onChange={setFilters} />
 
-      <ComplaintTable complaints={filtered} onSelect={(complaint) => navigate(`/complaints/${complaint.id}`)} />
+      <ComplaintTable complaints={filtered} onSelect={(complaint) => navigate(`/admin/complaints/${complaint.id}`)} />
     </section>
   );
 };
