@@ -15,19 +15,23 @@ const blobToDataUrl = (blob: Blob) =>
 const addBrandingHeader = (doc: jsPDF, title: string) => {
   const branding = getBranding();
   let currentY = 20;
+
   if (branding.showBranding && branding.organizationName) {
     doc.setFontSize(12);
     doc.text(branding.organizationName, 14, 14);
     currentY = 24;
   }
+
   doc.setFontSize(18);
   doc.text(title, 14, currentY);
+
   return currentY;
 };
 
 export const exportComplaintPdf = async (complaint: Complaint, attachments: ComplaintAttachment[]) => {
   const doc = new jsPDF();
   const titleY = addBrandingHeader(doc, 'KlinikBeschwerde – Fallblatt');
+
   doc.setFontSize(11);
   doc.text(`Vorgangsnummer: ${complaint.caseNumber}`, 14, titleY + 10);
   doc.text(`Erstellt am: ${formatDateTime(complaint.createdAt)}`, 14, titleY + 16);
@@ -53,11 +57,13 @@ export const exportComplaintPdf = async (complaint: Complaint, attachments: Comp
   });
 
   const baseY = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || 120;
+
   doc.text('Beschreibung', 14, baseY + 10);
   doc.setFontSize(10);
   doc.text(doc.splitTextToSize(complaint.description, 180), 14, baseY + 16);
 
   let currentY = baseY + 36;
+
   if (complaint.measures) {
     doc.setFontSize(11);
     doc.text('Maßnahmen / Notizen', 14, currentY);
@@ -75,15 +81,19 @@ export const exportComplaintPdf = async (complaint: Complaint, attachments: Comp
   });
 
   const imageAttachments = attachments.filter((item) => item.mimeType.startsWith('image/')).slice(0, 2);
+
   if (imageAttachments.length) {
     let imageY = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || currentY + 40;
+
     doc.setFontSize(11);
     doc.text('Bildvorschau (MVP)', 14, imageY + 10);
     imageY += 16;
+
     for (const attachment of imageAttachments) {
       try {
         const dataUrl = await blobToDataUrl(attachment.blob);
         const format = attachment.mimeType.includes('png') ? 'PNG' : 'JPEG';
+
         doc.addImage(dataUrl, format, 14, imageY, 60, 40);
         doc.text(attachment.filename, 78, imageY + 6);
         imageY += 46;
@@ -110,6 +120,7 @@ export const exportDashboardPdf = ({
 }) => {
   const doc = new jsPDF();
   const titleY = addBrandingHeader(doc, title);
+
   doc.setFontSize(11);
   doc.text(`Erstellt am: ${formatDateTime(new Date().toISOString())}`, 14, titleY + 8);
   doc.text(`Filter: ${filters.length ? filters.join(', ') : 'Keine'}`, 14, titleY + 14);
@@ -120,18 +131,19 @@ export const exportDashboardPdf = ({
     body: kpis.map((kpi) => [kpi.label, String(kpi.value)]),
   });
 
-  let currentY =
-    (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || titleY + 40;
+  let currentY = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || titleY + 40;
 
   tables.forEach((table) => {
     currentY += 12;
     doc.setFontSize(12);
     doc.text(table.title, 14, currentY);
+
     autoTable(doc, {
       startY: currentY + 4,
       head: [table.head],
       body: table.body,
     });
+
     currentY = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || currentY + 40;
   });
 
@@ -140,6 +152,7 @@ export const exportDashboardPdf = ({
 
 const addListTable = (doc: jsPDF, filters: string[], complaints: Complaint[]) => {
   const titleY = addBrandingHeader(doc, 'KlinikBeschwerde – Vorgangsliste');
+
   doc.setFontSize(11);
   doc.text(`Filter: ${filters.length ? filters.join(', ') : 'Keine'}`, 14, titleY + 8);
 
@@ -207,6 +220,7 @@ export const exportDashboardWithListPdf = ({
 
   const renderDashboardPage = (pageTitle: string, chartSlice: Array<{ title: string; dataUrl?: string }>) => {
     const titleY = addBrandingHeader(doc, pageTitle);
+
     doc.setFontSize(11);
     doc.text(`Exportiert am: ${formatDateTime(new Date().toISOString())}`, margin, titleY + 8);
     doc.text(`Filter: ${filters.length ? filters.join(', ') : 'Keine'}`, margin, titleY + 14);
@@ -216,13 +230,16 @@ export const exportDashboardWithListPdf = ({
     const kpiCount = kpis.length;
     const kpiWidth = (pageWidth - margin * 2 - kpiGap * (kpiCount - 1)) / kpiCount;
     const kpiHeight = 18;
+
     kpis.forEach((kpi, index) => {
       const x = margin + index * (kpiWidth + kpiGap);
       doc.setDrawColor(227, 231, 239);
       doc.setFillColor(245, 247, 252);
       doc.roundedRect(x, kpiY, kpiWidth, kpiHeight, 2, 2, 'F');
+
       doc.setFontSize(10);
       doc.text(kpi.label, x + 4, kpiY + 6);
+
       doc.setFontSize(12);
       doc.text(String(kpi.value), x + 4, kpiY + 13);
     });
@@ -236,6 +253,7 @@ export const exportDashboardWithListPdf = ({
       const x = margin + index * (chartWidth + chartGap);
       doc.setFontSize(12);
       doc.text(chart.title, x, chartY);
+
       if (chart.dataUrl) {
         doc.addImage(chart.dataUrl, 'PNG', x, chartY + 4, chartWidth, chartHeight - 8, undefined, 'FAST');
       } else {
@@ -245,20 +263,21 @@ export const exportDashboardWithListPdf = ({
     });
   };
 
+  // Seite 1 & 2: Dashboard
   renderDashboardPage(`${title} – Seite 1`, dashboardCharts.slice(0, 2));
 
   doc.addPage('landscape');
   renderDashboardPage(`${title} – Seite 2`, dashboardCharts.slice(2, 4));
 
-  doc.addPage('landscape');
-  addListTable(doc, filters, complaints);
-
+  // Seite 3: Detail-Tabellen (falls vorhanden)
   doc.addPage('landscape');
   let currentY = margin;
+
   detailTables.forEach((table) => {
     currentY += 8;
     doc.setFontSize(12);
     doc.text(table.title, margin, currentY);
+
     autoTable(doc, {
       startY: currentY + 4,
       theme: 'grid',
@@ -268,12 +287,18 @@ export const exportDashboardWithListPdf = ({
       body: table.body,
       margin: { left: margin, right: margin },
     });
+
     currentY = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || currentY + 30;
+
     if (currentY > pageHeight - 40) {
       doc.addPage('landscape');
       currentY = margin;
     }
   });
+
+  // Liste immer erst nach dem Dashboard (und nach DetailTables) auf einer neuen Seite
+  doc.addPage('landscape');
+  addListTable(doc, filters, complaints);
 
   doc.save('KlinikBeschwerde_Dashboard_und_Vorgaenge.pdf');
 };
