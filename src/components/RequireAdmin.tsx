@@ -45,6 +45,7 @@ const RequireAdmin = ({ children }: PropsWithChildren) => {
               value={pin}
               onChange={(event) => setPin(event.target.value)}
               placeholder="z. B. 1234"
+              autoComplete="new-password"
             />
           </label>
           {error && <p className="form-error">{error}</p>}

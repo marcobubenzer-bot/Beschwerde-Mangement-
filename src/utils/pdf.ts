@@ -226,6 +226,17 @@ export const exportDashboardWithListPdf = ({
   const includeList = options?.includeList ?? true;
   const includeDetails = options?.includeDetails ?? false;
 
+  // WICHTIG: Proportional einpassen (contain) -> keine verzerrten Pie-Charts mehr
+  const addImageContain = (document: jsPDF, dataUrl: string, x: number, y: number, width: number, height: number) => {
+    const props = document.getImageProperties(dataUrl);
+    const scale = Math.min(width / props.width, height / props.height);
+    const drawWidth = props.width * scale;
+    const drawHeight = props.height * scale;
+    const offsetX = x + (width - drawWidth) / 2;
+    const offsetY = y + (height - drawHeight) / 2;
+    document.addImage(dataUrl, 'PNG', offsetX, offsetY, drawWidth, drawHeight, undefined, 'FAST');
+  };
+
   const renderDashboardPage = (pageTitle: string, chartSlice: Array<{ title: string; dataUrl?: string }>) => {
     const titleY = addBrandingHeader(doc, pageTitle);
 
@@ -244,7 +255,6 @@ export const exportDashboardWithListPdf = ({
       doc.setDrawColor(227, 231, 239);
       doc.setFillColor(245, 247, 252);
       doc.roundedRect(x, kpiY, kpiWidth, kpiHeight, 2, 2, 'F');
-
       doc.setFontSize(10);
       doc.text(kpi.label, x + 4, kpiY + 6);
       doc.setFontSize(12);
@@ -258,14 +268,26 @@ export const exportDashboardWithListPdf = ({
 
     chartSlice.forEach((chart, index) => {
       const x = margin + index * (chartWidth + chartGap);
+
+      // Card Look
+      const cardPadding = 8;
+      doc.setDrawColor(227, 231, 239);
+      doc.setFillColor(246, 248, 252);
+      doc.roundedRect(x, chartY, chartWidth, chartHeight, 3, 3, 'FD');
+
       doc.setFontSize(12);
-      doc.text(chart.title, x, chartY);
+      doc.text(chart.title, x + cardPadding, chartY + 10);
+
+      const imageX = x + cardPadding;
+      const imageY = chartY + 14;
+      const imageWidth = chartWidth - cardPadding * 2;
+      const imageHeight = chartHeight - cardPadding * 2 - 6;
 
       if (chart.dataUrl) {
-        doc.addImage(chart.dataUrl, 'PNG', x, chartY + 4, chartWidth, chartHeight - 8, undefined, 'FAST');
+        addImageContain(doc, chart.dataUrl, imageX, imageY, imageWidth, imageHeight);
       } else {
         doc.setFontSize(10);
-        doc.text('Chart nicht verfügbar', x, chartY + 14);
+        doc.text('Chart nicht verfügbar', imageX, imageY + 12);
       }
     });
   };
@@ -281,7 +303,6 @@ export const exportDashboardWithListPdf = ({
     const listTitleY = addBrandingHeader(doc, `${title} – Vorgangsliste`);
     doc.setFontSize(11);
     doc.text(`Filter: ${filters.length ? filters.join(', ') : 'Keine'}`, margin, listTitleY + 8);
-
     addListTable(doc, listTitleY + 14, complaints);
   }
 

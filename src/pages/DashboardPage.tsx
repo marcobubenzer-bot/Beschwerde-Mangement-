@@ -212,20 +212,12 @@ const DashboardPage = () => {
       ],
       detailTables: [
         { title: 'Aufteilung nach Kanal', head: ['Kanal', 'Anzahl'], body: channelData.map((i) => [i.name, i.total]) },
-        {
-          title: 'Aufteilung nach Melde-Typ',
-          head: ['Typ', 'Anzahl'],
-          body: reporterTypeData.map((i) => [i.name, i.total]),
-        },
+        { title: 'Aufteilung nach Melde-Typ', head: ['Typ', 'Anzahl'], body: reporterTypeData.map((i) => [i.name, i.total]) },
         { title: 'Status-Verteilung', head: ['Status', 'Anzahl'], body: statusData.map((i) => [i.name, i.total]) },
         { title: 'Top Kategorien', head: ['Kategorie', 'Anzahl'], body: topCategories.map((i) => [i.name, i.total]) },
         { title: 'Beschwerden pro Monat', head: ['Monat', 'Anzahl'], body: monthly.map((i) => [i.name, i.total]) },
         { title: 'Standorte', head: ['Standort', 'Anzahl'], body: locationData.map((i) => [i.name, i.total]) },
-        {
-          title: 'Top-Abteilungen',
-          head: ['Abteilung', 'Anzahl'],
-          body: topDepartmentsData.map((i) => [i.name, i.total]),
-        },
+        { title: 'Top-Abteilungen', head: ['Abteilung', 'Anzahl'], body: topDepartmentsData.map((i) => [i.name, i.total]) },
         { title: 'Bearbeitungszeit', head: ['Durchschnitt', 'Median'], body: [[processingStats.average, processingStats.median]] },
       ],
       complaints: filtered,
