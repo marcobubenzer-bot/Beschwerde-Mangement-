@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import {
   Bar,
   BarChart,
@@ -34,12 +34,14 @@ const DashboardPage = () => {
   const [filters, setFilters] = useState<ComplaintFilters>(initialFilters);
   const settings = useMemo(() => loadSettings(), []);
   const [exporting, setExporting] = useState(false);
+
   const [showExportDialog, setShowExportDialog] = useState(false);
   const [exportOptions, setExportOptions] = useState({
     includeDashboard: true,
     includeList: true,
     includeDetails: false,
   });
+
   const monthlyChartRef = useRef<HTMLDivElement | null>(null);
   const categoryChartRef = useRef<HTMLDivElement | null>(null);
   const statusChartRef = useRef<HTMLDivElement | null>(null);
@@ -80,6 +82,7 @@ const DashboardPage = () => {
   }, [filtered]);
 
   const topDepartmentsData = useMemo(() => topDepartments(filtered), [filtered]);
+
   const channelData = useMemo(() => {
     const counts = countBy(filtered, 'channel');
     return Object.entries(counts).map(([name, total]) => ({ name, total }));
@@ -125,7 +128,9 @@ const DashboardPage = () => {
         return Number.isFinite(diffDays) && diffDays > 0 ? diffDays : null;
       })
       .filter((value): value is number => value !== null);
+
     if (!durations.length) return { average: 'Nicht verfügbar', median: 'Nicht verfügbar' };
+
     const avg = Math.round(durations.reduce((sum, item) => sum + item, 0) / durations.length);
     const sorted = [...durations].sort((a, b) => a - b);
     const mid = Math.floor(sorted.length / 2);
@@ -134,119 +139,98 @@ const DashboardPage = () => {
   }, [filtered]);
 
   const activeFilters = useMemo(() => {
-    const filterLabels: string[] = [];
-    if (filters.status !== 'Alle') filterLabels.push(`Status: ${filters.status}`);
-    if (filters.category !== 'Alle') filterLabels.push(`Kategorie: ${filters.category}`);
-    if (filters.priority !== 'Alle') filterLabels.push(`Priorität: ${filters.priority}`);
-    if (filters.location) filterLabels.push(`Standort: ${filters.location}`);
-    if (filters.department) filterLabels.push(`Abteilung: ${filters.department}`);
-    if (filters.dateFrom) filterLabels.push(`Von: ${filters.dateFrom}`);
-    if (filters.dateTo) filterLabels.push(`Bis: ${filters.dateTo}`);
-    if (filters.query) filterLabels.push(`Suche: ${filters.query}`);
-    return filterLabels;
+    const labels: string[] = [];
+    if (filters.status !== 'Alle') labels.push(`Status: ${filters.status}`);
+    if (filters.category !== 'Alle') labels.push(`Kategorie: ${filters.category}`);
+    if (filters.priority !== 'Alle') labels.push(`Priorität: ${filters.priority}`);
+    if (filters.location) labels.push(`Standort: ${filters.location}`);
+    if (filters.department) labels.push(`Abteilung: ${filters.department}`);
+    if (filters.dateFrom) labels.push(`Von: ${filters.dateFrom}`);
+    if (filters.dateTo) labels.push(`Bis: ${filters.dateTo}`);
+    if (filters.query) labels.push(`Suche: ${filters.query}`);
+    return labels;
   }, [filters]);
 
-  const getChartImage = async (ref: React.RefObject<HTMLDivElement>) => {
+  const getChartImage = async (ref: RefObject<HTMLDivElement>) => {
     const container = ref.current;
     if (!container) return undefined;
+
     const svg = container.querySelector('svg');
     if (!svg) return undefined;
+
     const serializer = new XMLSerializer();
     const svgMarkup = serializer.serializeToString(svg);
     const encoded = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgMarkup)}`;
+
     const image = new Image();
     image.src = encoded;
     await image.decode();
+
     const bounds = svg.getBoundingClientRect();
+
+    // Export in höherer Auflösung (scharf im PDF)
     const scale = 4;
     const width = Math.max(bounds.width, 320);
     const height = Math.max(bounds.height, 220);
+
     const canvas = document.createElement('canvas');
     canvas.width = Math.round(width * scale);
     canvas.height = Math.round(height * scale);
+
     const ctx = canvas.getContext('2d');
     if (ctx) {
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
     }
+
     return canvas.toDataURL('image/png');
   };
 
   const handlePdfExport = async () => {
     setExporting(true);
-    const chartImages = await Promise.all([
-      getChartImage(monthlyChartRef),
-      getChartImage(categoryChartRef),
-      getChartImage(statusChartRef),
-      getChartImage(departmentChartRef),
-    ]);
+    try {
+      const chartImages = await Promise.all([
+        getChartImage(monthlyChartRef),
+        getChartImage(categoryChartRef),
+        getChartImage(statusChartRef),
+        getChartImage(departmentChartRef),
+      ]);
 
-    exportDashboardWithListPdf({
-      title: 'KlinikBeschwerde – Dashboard',
-      filters: activeFilters,
-      kpis: [
-        ...kpis.map((item) => ({ label: item.label, value: Number(item.value) })),
-        { label: 'Ø Bearbeitungszeit', value: processingStats.average },
-      ],
-      dashboardCharts: [
-        { title: 'Beschwerden pro Monat', dataUrl: chartImages[0] },
-        { title: 'Kategorien-Verteilung', dataUrl: chartImages[1] },
-        { title: 'Status-Verteilung', dataUrl: chartImages[2] },
-        { title: 'Top-Abteilungen', dataUrl: chartImages[3] },
-      ],
-      detailTables: [
-        {
-          title: 'Aufteilung nach Kanal',
-          head: ['Kanal', 'Anzahl'],
-          body: channelData.map((item) => [item.name, item.total]),
+      exportDashboardWithListPdf({
+        title: 'KlinikBeschwerde – Dashboard',
+        filters: activeFilters,
+        kpis: [
+          ...kpis.map((item) => ({ label: item.label, value: Number(item.value) })),
+          { label: 'Ø Bearbeitungszeit', value: processingStats.average },
+        ],
+        dashboardCharts: [
+          { title: 'Beschwerden pro Monat', dataUrl: chartImages[0] },
+          { title: 'Kategorien-Verteilung', dataUrl: chartImages[1] },
+          { title: 'Status-Verteilung', dataUrl: chartImages[2] },
+          { title: 'Top-Abteilungen', dataUrl: chartImages[3] },
+        ],
+        detailTables: [
+          { title: 'Aufteilung nach Kanal', head: ['Kanal', 'Anzahl'], body: channelData.map((i) => [i.name, i.total]) },
+          { title: 'Aufteilung nach Melde-Typ', head: ['Typ', 'Anzahl'], body: reporterTypeData.map((i) => [i.name, i.total]) },
+          { title: 'Status-Verteilung', head: ['Status', 'Anzahl'], body: statusData.map((i) => [i.name, i.total]) },
+          { title: 'Top Kategorien', head: ['Kategorie', 'Anzahl'], body: topCategories.map((i) => [i.name, i.total]) },
+          { title: 'Beschwerden pro Monat', head: ['Monat', 'Anzahl'], body: monthly.map((i) => [i.name, i.total]) },
+          { title: 'Standorte', head: ['Standort', 'Anzahl'], body: locationData.map((i) => [i.name, i.total]) },
+          { title: 'Top-Abteilungen', head: ['Abteilung', 'Anzahl'], body: topDepartmentsData.map((i) => [i.name, i.total]) },
+          { title: 'Bearbeitungszeit', head: ['Durchschnitt', 'Median'], body: [[processingStats.average, processingStats.median]] },
+        ],
+        complaints: filtered,
+        options: {
+          includeDashboard: exportOptions.includeDashboard,
+          includeList: exportOptions.includeList,
+          includeDetails: exportOptions.includeDetails,
         },
-        {
-          title: 'Aufteilung nach Melde-Typ',
-          head: ['Typ', 'Anzahl'],
-          body: reporterTypeData.map((item) => [item.name, item.total]),
-        },
-        {
-          title: 'Status-Verteilung',
-          head: ['Status', 'Anzahl'],
-          body: statusData.map((item) => [item.name, item.total]),
-        },
-        {
-          title: 'Top Kategorien',
-          head: ['Kategorie', 'Anzahl'],
-          body: topCategories.map((item) => [item.name, item.total]),
-        },
-        {
-          title: 'Beschwerden pro Monat',
-          head: ['Monat', 'Anzahl'],
-          body: monthly.map((item) => [item.name, item.total]),
-        },
-        {
-          title: 'Standorte',
-          head: ['Standort', 'Anzahl'],
-          body: locationData.map((item) => [item.name, item.total]),
-        },
-        {
-          title: 'Top-Abteilungen',
-          head: ['Abteilung', 'Anzahl'],
-          body: topDepartmentsData.map((item) => [item.name, item.total]),
-        },
-        {
-          title: 'Bearbeitungszeit',
-          head: ['Durchschnitt', 'Median'],
-          body: [[processingStats.average, processingStats.median]],
-        },
-      ],
-      complaints: filtered,
-      options: {
-        includeDashboard: exportOptions.includeDashboard,
-        includeList: exportOptions.includeList,
-        includeDetails: exportOptions.includeDetails,
-      },
-    });
-    setExporting(false);
+      });
+    } finally {
+      setExporting(false);
+    }
   };
-
 
   return (
     <section>
@@ -263,20 +247,21 @@ const DashboardPage = () => {
       </header>
 
       <FiltersPanel filters={filters} settings={settings} onChange={setFilters} />
+
       {showExportDialog && (
         <div className="modal-backdrop" role="presentation">
           <div className="card modal" role="dialog" aria-modal="true" aria-labelledby="pdf-export-title">
             <h3 id="pdf-export-title">PDF-Export</h3>
+
             <label className="checkbox">
               <input
                 type="checkbox"
                 checked={exportOptions.includeDashboard}
-                onChange={(event) =>
-                  setExportOptions((prev) => ({ ...prev, includeDashboard: event.target.checked }))
-                }
+                onChange={(event) => setExportOptions((prev) => ({ ...prev, includeDashboard: event.target.checked }))}
               />
               Dashboard (Seite 1–2)
             </label>
+
             <label className="checkbox">
               <input
                 type="checkbox"
@@ -285,6 +270,7 @@ const DashboardPage = () => {
               />
               Vorgangsliste (Seite 3)
             </label>
+
             <label className="checkbox">
               <input
                 type="checkbox"
@@ -293,6 +279,7 @@ const DashboardPage = () => {
               />
               Detailtabellen (Seite 4+)
             </label>
+
             <div className="form-actions">
               <button type="button" className="button ghost" onClick={() => setShowExportDialog(false)}>
                 Abbrechen
@@ -331,6 +318,7 @@ const DashboardPage = () => {
             </BarChart>
           </ResponsiveContainer>
         </div>
+
         <div className="card chart-card" ref={categoryChartRef}>
           <h3>Kategorien-Verteilung</h3>
           <ResponsiveContainer width="100%" height={260}>
@@ -354,6 +342,7 @@ const DashboardPage = () => {
             </PieChart>
           </ResponsiveContainer>
         </div>
+
         <div className="card chart-card" ref={departmentChartRef}>
           <h3>Top-Abteilungen</h3>
           <ResponsiveContainer width="100%" height={260}>
