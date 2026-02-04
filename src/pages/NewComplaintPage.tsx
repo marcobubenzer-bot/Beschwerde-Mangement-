@@ -2,8 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import TagInput from '../components/TagInput';
-import { complaintRepository } from '../storage/indexedDbComplaintRepository';
 import { attachmentRepository } from '../storage/attachmentRepository';
+import { complaintRepository } from '../storage/indexedDbComplaintRepository';
 import { getSectionValues, loadSettings } from '../storage/settingsRepository';
 import { generateCaseNumber } from '../services/caseNumberService';
 import { Complaint, ComplaintAttachment } from '../types/complaint';
@@ -32,10 +32,12 @@ const getReporterTypeFromQuery = (value: string | null): Complaint['reporterType
 const NewComplaintPage = ({ mode }: NewComplaintPageProps) => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+
   const settings = useMemo(() => loadSettings(), []);
   const locations = useMemo(() => getSectionValues(settings, 'locations'), [settings]);
   const departments = useMemo(() => getSectionValues(settings, 'departments'), [settings]);
   const categories = useMemo(() => getSectionValues(settings, 'categories'), [settings]);
+
   const isAdmin = mode === 'admin';
   const initialReporterType = useMemo(
     () => (isAdmin ? 'Patient' : getReporterTypeFromQuery(searchParams.get('type'))),
@@ -51,7 +53,7 @@ const NewComplaintPage = ({ mode }: NewComplaintPageProps) => {
     contact: '',
     location: locations[0] ?? '',
     department: departments[0] ?? '',
-    category: (categories[0] as Complaint['category']) ?? 'Pflege',
+    category: (categories[0] || 'Pflege') as Complaint['category'],
     priority: 'Mittel',
     channel: isAdmin ? 'Telefon' : 'Online',
     origin: isAdmin ? 'admin' : 'report',
@@ -76,7 +78,7 @@ const NewComplaintPage = ({ mode }: NewComplaintPageProps) => {
       ...prev,
       location: prev.location || locations[0] || '',
       department: prev.department || departments[0] || '',
-      category: (prev.category || categories[0]) as Complaint['category'],
+      category: (prev.category || categories[0] || 'Pflege') as Complaint['category'],
       reporterType: prev.reporterType || initialReporterType,
       channel: isAdmin ? prev.channel : 'Online',
       origin: isAdmin ? 'admin' : 'report',
@@ -95,11 +97,13 @@ const NewComplaintPage = ({ mode }: NewComplaintPageProps) => {
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (!event.target.files) return;
+
     const nextDrafts = Array.from(event.target.files).map((file) => ({
       id: uuidv4(),
       file,
       previewUrl: URL.createObjectURL(file),
     }));
+
     setDrafts((prev) => [...prev, ...nextDrafts]);
     event.target.value = '';
   };
@@ -114,6 +118,7 @@ const NewComplaintPage = ({ mode }: NewComplaintPageProps) => {
 
   const persistAttachments = async (complaintId: string) => {
     const storedIds: string[] = [];
+
     for (const draft of drafts) {
       const attachment: ComplaintAttachment = {
         id: draft.id,
@@ -124,24 +129,31 @@ const NewComplaintPage = ({ mode }: NewComplaintPageProps) => {
         createdAt: new Date().toISOString(),
         blob: draft.file,
       };
+
       await attachmentRepository.create(attachment);
       storedIds.push(draft.id);
     }
+
     return storedIds;
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+
     if (!form.description.trim()) {
       setError('Bitte beschreiben Sie die Beschwerde.');
       return;
     }
+
     if (!form.consent) {
       setError('Bitte bestätigen Sie die Datenschutz-Einwilligung.');
       return;
     }
+
     setError('');
+
     const attachmentIds = await persistAttachments(form.id);
+
     const complaint: Complaint = {
       ...form,
       channel: isAdmin ? form.channel : 'Online',
@@ -154,7 +166,9 @@ const NewComplaintPage = ({ mode }: NewComplaintPageProps) => {
       measures: form.measures?.trim() || undefined,
       attachmentIds,
     };
+
     await complaintRepository.create(complaint);
+
     navigate(mode === 'report' ? `/report/confirmation/${complaint.id}` : `/admin/confirmation/${complaint.id}`);
   };
 
@@ -186,6 +200,7 @@ const NewComplaintPage = ({ mode }: NewComplaintPageProps) => {
                 <option value="Sonstige">Sonstige</option>
               </select>
             </label>
+
             <label>
               Name (optional)
               <input
@@ -194,6 +209,7 @@ const NewComplaintPage = ({ mode }: NewComplaintPageProps) => {
                 placeholder="Optionaler Name"
               />
             </label>
+
             <label>
               Kontakt (optional)
               <input
@@ -231,6 +247,7 @@ const NewComplaintPage = ({ mode }: NewComplaintPageProps) => {
                 )}
               </select>
             </label>
+
             <label>
               Abteilung/Station *
               <select
@@ -248,6 +265,7 @@ const NewComplaintPage = ({ mode }: NewComplaintPageProps) => {
                 )}
               </select>
             </label>
+
             <label>
               Kategorie *
               <select
@@ -256,13 +274,18 @@ const NewComplaintPage = ({ mode }: NewComplaintPageProps) => {
                   setForm((prev) => ({ ...prev, category: event.target.value as Complaint['category'] }))
                 }
               >
-                {categories.map((item) => (
-                  <option key={item} value={item}>
-                    {item}
-                  </option>
-                ))}
+                {categories.length ? (
+                  categories.map((item) => (
+                    <option key={item} value={item}>
+                      {item}
+                    </option>
+                  ))
+                ) : (
+                  <option value="Pflege">Pflege</option>
+                )}
               </select>
             </label>
+
             <label>
               Kanal *
               {isAdmin ? (
@@ -298,6 +321,7 @@ const NewComplaintPage = ({ mode }: NewComplaintPageProps) => {
               rows={5}
             />
           </label>
+
           <div className="grid-2">
             <label>
               Beteiligte Personen (optional)
@@ -306,6 +330,7 @@ const NewComplaintPage = ({ mode }: NewComplaintPageProps) => {
                 onChange={(event) => setForm((prev) => ({ ...prev, involvedPeople: event.target.value }))}
               />
             </label>
+
             <label>
               Priorität *
               <select
@@ -321,17 +346,20 @@ const NewComplaintPage = ({ mode }: NewComplaintPageProps) => {
               </select>
             </label>
           </div>
+
           <TagInput
             label="Schlagwörter"
             tags={form.tags}
             onChange={(tags) => setForm((prev) => ({ ...prev, tags }))}
             placeholder="z. B. Wartezeit, Service"
           />
+
           <div className="attachment">
             <label>
               Anlagen hinzufügen (Bilder)
               <input type="file" accept="image/png, image/jpeg, image/webp" multiple onChange={handleFileChange} />
             </label>
+
             {drafts.length > 0 && (
               <div className="attachment-grid">
                 {drafts.map((draft) => (
@@ -371,6 +399,7 @@ const NewComplaintPage = ({ mode }: NewComplaintPageProps) => {
                   <option value="Abgelehnt">Abgelehnt</option>
                 </select>
               </label>
+
               <label>
                 Verantwortliche Person (optional)
                 <input
@@ -378,6 +407,7 @@ const NewComplaintPage = ({ mode }: NewComplaintPageProps) => {
                   onChange={(event) => setForm((prev) => ({ ...prev, owner: event.target.value }))}
                 />
               </label>
+
               <label>
                 Frist (optional)
                 <input
@@ -387,6 +417,7 @@ const NewComplaintPage = ({ mode }: NewComplaintPageProps) => {
                 />
               </label>
             </div>
+
             <label>
               Maßnahmen / Notizen (optional)
               <textarea
@@ -415,6 +446,7 @@ const NewComplaintPage = ({ mode }: NewComplaintPageProps) => {
           <button type="submit" className="button primary">
             Beschwerde speichern
           </button>
+
           <button
             type="button"
             className="button ghost"

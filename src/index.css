@@ -612,6 +612,7 @@ tr {
   align-items: center;
 }
 
+/* kept from conflict branch: */
 .value-list {
   display: grid;
   gap: 8px;

@@ -4,6 +4,8 @@ import { Complaint, ComplaintAttachment } from '../types/complaint';
 import { getBranding } from '../storage/brandingRepository';
 import { formatDate, formatDateTime } from './date';
 
+const DEFAULT_MARGIN = 14;
+
 const blobToDataUrl = (blob: Blob) =>
   new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -41,55 +43,80 @@ export const exportComplaintPdf = async (complaint: Complaint, attachments: Comp
       ['Kategorie', complaint.category],
       ['Kanal', complaint.channel],
       ['Melder-Typ', complaint.reporterType],
-      ['Melder-Name', complaint.reporterName || '—'],
-      ['Kontakt', complaint.contact || '—'],
+      ['Melder-Name', safeText(complaint.reporterName)],
+      ['Kontakt', safeText(complaint.contact)],
       ['Standort', complaint.location],
       ['Abteilung/Station', complaint.department],
-      ['Beteiligte Personen', complaint.involvedPeople || '—'],
-      ['Verantwortlich', complaint.owner || '—'],
+      ['Beteiligte Personen', safeText(complaint.involvedPeople)],
+      ['Verantwortlich', safeText(complaint.owner)],
       ['Frist', complaint.dueDate ? formatDate(complaint.dueDate) : '—'],
-      ['Schlagwörter', complaint.tags.length ? complaint.tags.join(', ') : '—'],
+      ['Schlagwörter', complaint.tags?.length ? complaint.tags.join(', ') : '—'],
     ],
   });
 
-  const baseY = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || 120;
-  doc.text('Beschreibung', 14, baseY + 10);
-  doc.setFontSize(10);
-  doc.text(doc.splitTextToSize(complaint.description, 180), 14, baseY + 16);
+  let currentY = lastTableY(doc, titleY + 120) + 10;
 
-  let currentY = baseY + 36;
-  if (complaint.measures) {
+  // Beschreibung
+  doc.setFontSize(11);
+  doc.text('Beschreibung', DEFAULT_MARGIN, currentY);
+  currentY += 6;
+
+  doc.setFontSize(10);
+  doc.text(doc.splitTextToSize(complaint.description || '—', 180), DEFAULT_MARGIN, currentY);
+  currentY += 18;
+
+  // Maßnahmen / Notizen
+  if (complaint.measures && complaint.measures.trim()) {
     doc.setFontSize(11);
-    doc.text('Maßnahmen / Notizen', 14, currentY);
+    doc.text('Maßnahmen / Notizen', DEFAULT_MARGIN, currentY);
+    currentY += 6;
+
     doc.setFontSize(10);
-    doc.text(doc.splitTextToSize(complaint.measures, 180), 14, currentY + 6);
-    currentY += 26;
+    doc.text(doc.splitTextToSize(complaint.measures, 180), DEFAULT_MARGIN, currentY);
+    currentY += 18;
   }
 
+  // Anlagen-Tabelle
   autoTable(doc, {
-    startY: currentY + 6,
+    startY: currentY,
+    margin: { left: DEFAULT_MARGIN, right: DEFAULT_MARGIN },
     head: [['Anlage', 'Typ', 'Größe (KB)']],
     body: attachments.length
-      ? attachments.map((item) => [item.filename, item.mimeType, String(Math.round(item.size / 1024))])
+      ? attachments.map((a) => [a.filename, a.mimeType, String(Math.round(a.size / 1024))])
       : [['Keine Anlagen', '—', '—']],
   });
 
-  const imageAttachments = attachments.filter((item) => item.mimeType.startsWith('image/')).slice(0, 2);
+  currentY = lastTableY(doc, currentY) + 8;
+
+  // Bildvorschau (max 2)
+  const imageAttachments = attachments
+    .filter((a) => a.mimeType?.startsWith('image/') && a.blob)
+    .slice(0, 2);
+
   if (imageAttachments.length) {
-    let imageY = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || currentY + 40;
     doc.setFontSize(11);
-    doc.text('Bildvorschau (MVP)', 14, imageY + 10);
-    imageY += 16;
-    for (const attachment of imageAttachments) {
+    doc.text('Bildvorschau (MVP)', DEFAULT_MARGIN, currentY + 6);
+    currentY += 12;
+
+    for (const a of imageAttachments) {
       try {
-        const dataUrl = await blobToDataUrl(attachment.blob);
-        const format = attachment.mimeType.includes('png') ? 'PNG' : 'JPEG';
-        doc.addImage(dataUrl, format, 14, imageY, 60, 40);
-        doc.text(attachment.filename, 78, imageY + 6);
-        imageY += 46;
+        const dataUrl = await blobToDataUrl(a.blob);
+        const format = a.mimeType.includes('png') ? 'PNG' : 'JPEG';
+
+        // Falls zu wenig Platz: neue Seite
+        if (currentY > doc.internal.pageSize.getHeight() - 60) {
+          doc.addPage();
+          currentY = DEFAULT_MARGIN;
+        }
+
+        doc.addImage(dataUrl, format, DEFAULT_MARGIN, currentY, 60, 40);
+        doc.setFontSize(10);
+        doc.text(a.filename, DEFAULT_MARGIN + 66, currentY + 6);
+        currentY += 46;
       } catch {
-        doc.text(`Bild ${attachment.filename} konnte nicht eingebettet werden.`, 14, imageY + 6);
-        imageY += 12;
+        doc.setFontSize(10);
+        doc.text(`Bild ${a.filename} konnte nicht eingebettet werden.`, DEFAULT_MARGIN, currentY + 6);
+        currentY += 12;
       }
     }
   }
@@ -126,13 +153,21 @@ export const exportDashboardPdf = ({
   tables.forEach((table) => {
     currentY += 12;
     doc.setFontSize(12);
-    doc.text(table.title, 14, currentY);
+    doc.text(table.title, DEFAULT_MARGIN, currentY);
+
     autoTable(doc, {
       startY: currentY + 4,
+      margin: { left: DEFAULT_MARGIN, right: DEFAULT_MARGIN },
       head: [table.head],
       body: table.body,
     });
-    currentY = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || currentY + 40;
+
+    currentY = lastTableY(doc, currentY + 40);
+
+    if (currentY > doc.internal.pageSize.getHeight() - 30) {
+      doc.addPage();
+      currentY = DEFAULT_MARGIN;
+    }
   });
 
   doc.save('KlinikBeschwerde_Dashboard.pdf');
