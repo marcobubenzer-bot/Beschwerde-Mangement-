@@ -158,6 +158,17 @@ const addListTable = (doc: jsPDF, filters: string[], complaints: Complaint[]) =>
 
   autoTable(doc, {
     startY: titleY + 14,
+    theme: 'grid',
+    styles: { fontSize: 9, cellPadding: 2, overflow: 'linebreak' },
+    headStyles: { fontStyle: 'bold' },
+    columnStyles: {
+      0: { cellWidth: 30 },
+      1: { cellWidth: 28 },
+      2: { cellWidth: 32 },
+      3: { cellWidth: 26 },
+      4: { cellWidth: 30 },
+      5: { cellWidth: 50 },
+    },
     head: [['Vorgang', 'Status', 'Kategorie', 'Priorität', 'Standort', 'Abteilung', 'Datum']],
     body: complaints.map((complaint) => [
       complaint.caseNumber,
@@ -244,7 +255,7 @@ export const exportDashboardWithListPdf = ({
       doc.text(chart.title, x, chartY);
 
       if (chart.dataUrl) {
-        doc.addImage(chart.dataUrl, 'PNG', x, chartY + 4, chartWidth, chartHeight - 8);
+        doc.addImage(chart.dataUrl, 'PNG', x, chartY + 4, chartWidth, chartHeight - 8, undefined, 'FAST');
       } else {
         doc.setFontSize(10);
         doc.text('Chart nicht verfügbar', x, chartY + 14);
@@ -252,12 +263,15 @@ export const exportDashboardWithListPdf = ({
     });
   };
 
+  // Seite 1 & 2: Dashboard
   renderDashboardPage(`${title} – Seite 1`, dashboardCharts.slice(0, 2));
 
   doc.addPage('landscape');
   renderDashboardPage(`${title} – Seite 2`, dashboardCharts.slice(2, 4));
 
-  let currentY = 130;
+  // Seite 3: Detail-Tabellen (falls vorhanden)
+  doc.addPage('landscape');
+  let currentY = margin;
 
   detailTables.forEach((table) => {
     currentY += 8;
@@ -266,6 +280,9 @@ export const exportDashboardWithListPdf = ({
 
     autoTable(doc, {
       startY: currentY + 4,
+      theme: 'grid',
+      styles: { fontSize: 9, cellPadding: 2, overflow: 'linebreak' },
+      headStyles: { fontStyle: 'bold' },
       head: [table.head],
       body: table.body,
       margin: { left: margin, right: margin },
@@ -279,6 +296,7 @@ export const exportDashboardWithListPdf = ({
     }
   });
 
+  // Liste immer erst nach dem Dashboard (und nach DetailTables) auf einer neuen Seite
   doc.addPage('landscape');
   addListTable(doc, filters, complaints);
 
