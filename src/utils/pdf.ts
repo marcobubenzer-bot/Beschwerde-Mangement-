@@ -150,14 +150,10 @@ export const exportDashboardPdf = ({
   doc.save('KlinikBeschwerde_Dashboard.pdf');
 };
 
-const addListTable = (doc: jsPDF, filters: string[], complaints: Complaint[]) => {
-  const titleY = addBrandingHeader(doc, 'KlinikBeschwerde – Vorgangsliste');
-
-  doc.setFontSize(11);
-  doc.text(`Filter: ${filters.length ? filters.join(', ') : 'Keine'}`, 14, titleY + 8);
-
+// Rendert NUR die Tabelle (kein Header), damit man die Seite flexibel davor aufbauen kann.
+const addListTable = (doc: jsPDF, startY: number, complaints: Complaint[]) => {
   autoTable(doc, {
-    startY: titleY + 14,
+    startY,
     theme: 'grid',
     styles: { fontSize: 9, cellPadding: 2, overflow: 'linebreak' },
     headStyles: { fontStyle: 'bold' },
@@ -168,6 +164,7 @@ const addListTable = (doc: jsPDF, filters: string[], complaints: Complaint[]) =>
       3: { cellWidth: 26 },
       4: { cellWidth: 30 },
       5: { cellWidth: 50 },
+      6: { cellWidth: 22 },
     },
     head: [['Vorgang', 'Status', 'Kategorie', 'Priorität', 'Standort', 'Abteilung', 'Datum']],
     body: complaints.map((complaint) => [
@@ -192,8 +189,13 @@ export const exportListPdf = ({
   complaints: Complaint[];
 }) => {
   const doc = new jsPDF('landscape');
-  addBrandingHeader(doc, title);
-  addListTable(doc, filters, complaints);
+  const margin = 14;
+
+  const titleY = addBrandingHeader(doc, title);
+  doc.setFontSize(11);
+  doc.text(`Filter: ${filters.length ? filters.join(', ') : 'Keine'}`, margin, titleY + 8);
+
+  addListTable(doc, titleY + 14, complaints);
 
   doc.save('KlinikBeschwerde_Vorgaenge.pdf');
 };
@@ -205,6 +207,7 @@ export const exportDashboardWithListPdf = ({
   dashboardCharts,
   detailTables,
   complaints,
+  options,
 }: {
   title: string;
   filters: string[];
@@ -212,11 +215,16 @@ export const exportDashboardWithListPdf = ({
   dashboardCharts: Array<{ title: string; dataUrl?: string }>;
   detailTables: Array<{ title: string; head: string[]; body: Array<(string | number)[]> }>;
   complaints: Complaint[];
+  options?: { includeDashboard?: boolean; includeList?: boolean; includeDetails?: boolean };
 }) => {
   const doc = new jsPDF('landscape');
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 14;
+
+  const includeDashboard = options?.includeDashboard ?? true;
+  const includeList = options?.includeList ?? true;
+  const includeDetails = options?.includeDetails ?? false;
 
   const renderDashboardPage = (pageTitle: string, chartSlice: Array<{ title: string; dataUrl?: string }>) => {
     const titleY = addBrandingHeader(doc, pageTitle);
@@ -239,7 +247,6 @@ export const exportDashboardWithListPdf = ({
 
       doc.setFontSize(10);
       doc.text(kpi.label, x + 4, kpiY + 6);
-
       doc.setFontSize(12);
       doc.text(String(kpi.value), x + 4, kpiY + 13);
     });
@@ -263,42 +270,49 @@ export const exportDashboardWithListPdf = ({
     });
   };
 
-  // Seite 1 & 2: Dashboard
-  renderDashboardPage(`${title} – Seite 1`, dashboardCharts.slice(0, 2));
+  if (includeDashboard) {
+    renderDashboardPage(`${title} – Seite 1`, dashboardCharts.slice(0, 2));
+    doc.addPage('landscape');
+    renderDashboardPage(`${title} – Seite 2`, dashboardCharts.slice(2, 4));
+  }
 
-  doc.addPage('landscape');
-  renderDashboardPage(`${title} – Seite 2`, dashboardCharts.slice(2, 4));
+  if (includeList) {
+    doc.addPage('landscape');
+    const listTitleY = addBrandingHeader(doc, `${title} – Vorgangsliste`);
+    doc.setFontSize(11);
+    doc.text(`Filter: ${filters.length ? filters.join(', ') : 'Keine'}`, margin, listTitleY + 8);
 
-  // Seite 3: Detail-Tabellen (falls vorhanden)
-  doc.addPage('landscape');
-  let currentY = margin;
+    addListTable(doc, listTitleY + 14, complaints);
+  }
 
-  detailTables.forEach((table) => {
-    currentY += 8;
-    doc.setFontSize(12);
-    doc.text(table.title, margin, currentY);
+  if (includeDetails) {
+    doc.addPage('landscape');
+    const detailsTitleY = addBrandingHeader(doc, `${title} – Detailtabellen`);
+    let currentY = detailsTitleY + 10;
 
-    autoTable(doc, {
-      startY: currentY + 4,
-      theme: 'grid',
-      styles: { fontSize: 9, cellPadding: 2, overflow: 'linebreak' },
-      headStyles: { fontStyle: 'bold' },
-      head: [table.head],
-      body: table.body,
-      margin: { left: margin, right: margin },
+    detailTables.forEach((table) => {
+      currentY += 8;
+      doc.setFontSize(12);
+      doc.text(table.title, margin, currentY);
+
+      autoTable(doc, {
+        startY: currentY + 4,
+        theme: 'grid',
+        styles: { fontSize: 9, cellPadding: 2, overflow: 'linebreak' },
+        headStyles: { fontStyle: 'bold' },
+        head: [table.head],
+        body: table.body,
+        margin: { left: margin, right: margin },
+      });
+
+      currentY = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || currentY + 30;
+
+      if (currentY > pageHeight - 40) {
+        doc.addPage('landscape');
+        currentY = margin;
+      }
     });
-
-    currentY = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || currentY + 30;
-
-    if (currentY > pageHeight - 40) {
-      doc.addPage('landscape');
-      currentY = margin;
-    }
-  });
-
-  // Liste immer erst nach dem Dashboard (und nach DetailTables) auf einer neuen Seite
-  doc.addPage('landscape');
-  addListTable(doc, filters, complaints);
+  }
 
   doc.save('KlinikBeschwerde_Dashboard_und_Vorgaenge.pdf');
 };
