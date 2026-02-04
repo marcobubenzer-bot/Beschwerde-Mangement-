@@ -1,9 +1,11 @@
+import { Check, Pencil, Plus, Trash2, X } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 type DropdownSectionEditorProps = {
   sectionTitle: string;
   values: string[];
-  onSave: (values: string[]) => void;
+  onChange: (values: string[]) => void;
 };
 
 const normalizeValues = (values: string[]) => {
@@ -19,7 +21,7 @@ const normalizeValues = (values: string[]) => {
     });
 };
 
-const DropdownSectionEditor = ({ sectionTitle, values, onSave }: DropdownSectionEditorProps) => {
+const DropdownSectionEditor = ({ sectionTitle, values, onChange }: DropdownSectionEditorProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [draftValues, setDraftValues] = useState<string[]>(values);
   const [error, setError] = useState('');
@@ -40,6 +42,11 @@ const DropdownSectionEditor = ({ sectionTitle, values, onSave }: DropdownSection
 
   const listValues = useMemo(() => (isEditing ? draftValues : values), [draftValues, isEditing, values]);
 
+  const handleStartEditing = () => {
+    setIsEditing(true);
+    setError('');
+  };
+
   const handleAddValue = () => {
     setDraftValues((prev) => {
       setFocusIndex(prev.length);
@@ -48,6 +55,10 @@ const DropdownSectionEditor = ({ sectionTitle, values, onSave }: DropdownSection
   };
 
   const handleSave = () => {
+    if (draftValues.some((value) => !value.trim())) {
+      setError('Bitte leere Einträge entfernen.');
+      return;
+    }
     const normalized = normalizeValues(draftValues);
     if (!normalized.length) {
       setError('Bitte mindestens einen Wert hinterlegen.');
@@ -66,7 +77,7 @@ const DropdownSectionEditor = ({ sectionTitle, values, onSave }: DropdownSection
       return;
     }
     setError('');
-    onSave(normalized);
+    onChange(normalized);
     setIsEditing(false);
   };
 
@@ -85,19 +96,19 @@ const DropdownSectionEditor = ({ sectionTitle, values, onSave }: DropdownSection
         </div>
         <div className="section-actions">
           {!isEditing ? (
-            <IconButton label="Bearbeiten" onClick={() => setIsEditing(true)}>
-              <PencilIcon />
+            <IconButton label="Bearbeiten" onClick={handleStartEditing}>
+              <Pencil size={18} aria-hidden="true" />
             </IconButton>
           ) : (
             <>
               <IconButton label="Wert hinzufügen" onClick={handleAddValue}>
-                <PlusIcon />
+                <Plus size={18} aria-hidden="true" />
               </IconButton>
               <IconButton label="Speichern" onClick={handleSave}>
-                <CheckIcon />
+                <Check size={18} aria-hidden="true" />
               </IconButton>
               <IconButton label="Abbrechen" onClick={handleCancel}>
-                <XIcon />
+                <X size={18} aria-hidden="true" />
               </IconButton>
             </>
           )}
@@ -114,9 +125,10 @@ const DropdownSectionEditor = ({ sectionTitle, values, onSave }: DropdownSection
                 }}
                 type="text"
                 value={value}
-                onChange={(event) =>
-                  setDraftValues((prev) => prev.map((item, idx) => (idx === index ? event.target.value : item)))
-                }
+                onChange={(event) => {
+                  setError('');
+                  setDraftValues((prev) => prev.map((item, idx) => (idx === index ? event.target.value : item)));
+                }}
                 onKeyDown={(event) => {
                   if (event.key === 'Enter') {
                     event.preventDefault();
@@ -137,7 +149,7 @@ const DropdownSectionEditor = ({ sectionTitle, values, onSave }: DropdownSection
                 label="Wert löschen"
                 onClick={() => setDraftValues((prev) => prev.filter((_, idx) => idx !== index))}
               >
-                <TrashIcon />
+                <Trash2 size={18} aria-hidden="true" />
               </IconButton>
             )}
           </div>
@@ -155,67 +167,11 @@ const IconButton = ({
 }: {
   label: string;
   onClick: () => void;
-  children: React.ReactNode;
+  children: ReactNode;
 }) => (
   <button type="button" className="icon-button" onClick={onClick} aria-label={label} title={label}>
     {children}
   </button>
-);
-
-const PlusIcon = () => (
-  <svg viewBox="0 0 24 24" aria-hidden="true">
-    <path
-      d="M12 5v14M5 12h14"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      fill="none"
-    />
-  </svg>
-);
-
-const TrashIcon = () => (
-  <svg viewBox="0 0 24 24" aria-hidden="true">
-    <path
-      d="M6 7h12M9 7V5h6v2M9 10v7M15 10v7M7 7l1 12h8l1-12"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      fill="none"
-    />
-  </svg>
-);
-
-const PencilIcon = () => (
-  <svg viewBox="0 0 24 24" aria-hidden="true">
-    <path
-      d="M4 20l4.5-1 9-9a2.1 2.1 0 0 0-3-3l-9 9L4 20zM14 6l4 4"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      fill="none"
-    />
-  </svg>
-);
-
-const CheckIcon = () => (
-  <svg viewBox="0 0 24 24" aria-hidden="true">
-    <path d="M5 12l4 4 10-10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none" />
-  </svg>
-);
-
-const XIcon = () => (
-  <svg viewBox="0 0 24 24" aria-hidden="true">
-    <path
-      d="M6 6l12 12M18 6l-12 12"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      fill="none"
-    />
-  </svg>
 );
 
 export default DropdownSectionEditor;

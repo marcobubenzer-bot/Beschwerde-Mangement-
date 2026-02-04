@@ -8,6 +8,7 @@ import { setAdminPin } from '../services/authService';
 import { useBranding } from '../context/BrandingContext';
 import { defaultBranding } from '../storage/brandingRepository';
 import { isValidHexColor, isValidSvgString } from '../utils/branding';
+import DropdownSectionEditor from '../components/DropdownSectionEditor';
 
 const SettingsPage = () => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -25,62 +26,21 @@ const SettingsPage = () => {
     setBrandingDraft(branding);
   }, [branding]);
 
-  const normalizeValues = (value: string) => {
-    const items = value
-      .split('\n')
-      .map((item) => item.trim())
-      .filter(Boolean);
-
-    const seen = new Set<string>();
-    return items.filter((item) => {
-      if (seen.has(item)) return false;
-      seen.add(item);
-      return true;
+  const saveSections = async (sections: DropdownSection[]) => {
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    setSettings((current) => {
+      const next = { ...current, dropdownSections: sections };
+      saveSettings(next);
+      return next;
     });
+    setMessage('Dropdown-Werte gespeichert.');
   };
 
-  const updateSection = (id: string, updates: Partial<DropdownSection>) => {
+  const handleSectionSave = (id: string, values: string[]) => {
     const nextSections = settings.dropdownSections.map((section) =>
-      section.id === id ? { ...section, ...updates } : section
+      section.id === id ? { ...section, values } : section
     );
-    const next = { ...settings, dropdownSections: nextSections };
-    setSettings(next);
-    saveSettings(next);
-  };
-
-  const addSection = () => {
-    const id =
-      typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `section-${Date.now()}`;
-    const nextSections = [...settings.dropdownSections, { id, label: 'Neuer Bereich', values: [] as string[] }];
-    const next = { ...settings, dropdownSections: nextSections };
-    setSettings(next);
-    saveSettings(next);
-  };
-
-  const removeSection = (id: string) => {
-    const confirmed = window.confirm('Bereich wirklich löschen?');
-    if (!confirmed) return;
-
-    const nextSections = settings.dropdownSections.filter((section) => section.id !== id);
-    const next = { ...settings, dropdownSections: nextSections };
-    setSettings(next);
-    saveSettings(next);
-  };
-
-  const moveSection = (id: string, direction: 'up' | 'down') => {
-    const index = settings.dropdownSections.findIndex((section) => section.id === id);
-    if (index < 0) return;
-
-    const targetIndex = direction === 'up' ? index - 1 : index + 1;
-    if (targetIndex < 0 || targetIndex >= settings.dropdownSections.length) return;
-
-    const nextSections = [...settings.dropdownSections];
-    const [removed] = nextSections.splice(index, 1);
-    nextSections.splice(targetIndex, 0, removed);
-
-    const next = { ...settings, dropdownSections: nextSections };
-    setSettings(next);
-    saveSettings(next);
+    void saveSections(nextSections);
   };
 
   const exportJson = async () => {
@@ -235,57 +195,14 @@ const SettingsPage = () => {
         <div className="card">
           <h3>Dropdown-Werte</h3>
 
-          <div className="button-stack">
-            <button className="button ghost" type="button" onClick={addSection}>
-              + Bereich hinzufügen
-            </button>
-          </div>
-
           <div className="stack">
-            {settings.dropdownSections.map((section, index) => (
-              <div key={section.id} className="card nested-card">
-                <div className="section-header">
-                  <input
-                    type="text"
-                    value={section.label}
-                    onChange={(event) => updateSection(section.id, { label: event.target.value })}
-                    aria-label="Bereichsname"
-                  />
-
-                  <div className="section-actions">
-                    <button
-                      type="button"
-                      className="button ghost"
-                      onClick={() => moveSection(section.id, 'up')}
-                      disabled={index === 0}
-                    >
-                      ↑
-                    </button>
-
-                    <button
-                      type="button"
-                      className="button ghost"
-                      onClick={() => moveSection(section.id, 'down')}
-                      disabled={index === settings.dropdownSections.length - 1}
-                    >
-                      ↓
-                    </button>
-
-                    <button type="button" className="button danger" onClick={() => removeSection(section.id)}>
-                      Löschen
-                    </button>
-                  </div>
-                </div>
-
-                <label>
-                  Werte (je Zeile)
-                  <textarea
-                    value={section.values.join('\n')}
-                    rows={5}
-                    onChange={(event) => updateSection(section.id, { values: normalizeValues(event.target.value) })}
-                  />
-                </label>
-              </div>
+            {settings.dropdownSections.map((section) => (
+              <DropdownSectionEditor
+                key={section.id}
+                sectionTitle={section.label}
+                values={section.values}
+                onChange={(values) => handleSectionSave(section.id, values)}
+              />
             ))}
           </div>
         </div>

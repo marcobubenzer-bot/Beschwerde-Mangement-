@@ -624,6 +624,10 @@ tr {
   align-items: center;
 }
 
+.value-row span {
+  flex: 1;
+}
+
 .value-row input {
   flex: 1;
 }
