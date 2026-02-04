@@ -1,17 +1,12 @@
 import { NavLink, Outlet } from 'react-router-dom';
+import BrandingMark from './BrandingMark';
 import ThemeToggle from './ThemeToggle';
 
 const AdminLayout = () => {
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <div className="brand">
-          <div className="brand-icon">KB</div>
-          <div>
-            <h1>KlinikBeschwerde</h1>
-            <p>Admin-Bereich</p>
-          </div>
-        </div>
+        <BrandingMark subtitle="Admin-Bereich" />
         <nav className="nav">
           <NavLink to="/admin/dashboard">Dashboard</NavLink>
           <NavLink to="/admin/new">Neue Beschwerde</NavLink>
