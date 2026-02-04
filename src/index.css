@@ -582,6 +582,36 @@ tr {
   gap: 12px;
 }
 
+.stack {
+  display: grid;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.nested-card {
+  box-shadow: none;
+  border: 1px solid var(--border);
+}
+
+.section-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.section-header input {
+  flex: 1 1 240px;
+}
+
+.section-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
 .hidden {
   display: none;
 }

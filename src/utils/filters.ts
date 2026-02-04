@@ -5,13 +5,10 @@ export const applyFilters = (complaints: Complaint[], filters: ComplaintFilters)
     if (filters.status !== 'Alle' && complaint.status !== filters.status) return false;
     if (filters.category !== 'Alle' && complaint.category !== filters.category) return false;
     if (filters.priority !== 'Alle' && complaint.priority !== filters.priority) return false;
-    if (filters.location && !complaint.location.toLowerCase().includes(filters.location.toLowerCase())) {
+    if (filters.location && filters.location !== 'Alle' && complaint.location !== filters.location) {
       return false;
     }
-    if (
-      filters.department &&
-      !complaint.department.toLowerCase().includes(filters.department.toLowerCase())
-    ) {
+    if (filters.department && filters.department !== 'Alle' && complaint.department !== filters.department) {
       return false;
     }
     if (filters.dateFrom && new Date(complaint.createdAt) < new Date(filters.dateFrom)) return false;

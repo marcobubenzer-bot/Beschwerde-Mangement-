@@ -4,6 +4,8 @@ import { Complaint, ComplaintAttachment } from '../types/complaint';
 import { getBranding } from '../storage/brandingRepository';
 import { formatDate, formatDateTime } from './date';
 
+const DEFAULT_MARGIN = 14;
+
 const blobToDataUrl = (blob: Blob) =>
   new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -12,32 +14,75 @@ const blobToDataUrl = (blob: Blob) =>
     reader.readAsDataURL(blob);
   });
 
-const addBrandingHeader = (doc: jsPDF, title: string) => {
+/**
+ * Header inkl. optionalem Branding + Titel.
+ * Gibt die Y-Position zurück, ab der "Content" sicher starten kann.
+ */
+const addBrandingHeader = (doc: jsPDF, title: string, margin = DEFAULT_MARGIN) => {
   const branding = getBranding();
-  let currentY = 20;
 
+  // Branding oben links
+  let y = 14;
   if (branding.showBranding && branding.organizationName) {
     doc.setFontSize(12);
-    doc.text(branding.organizationName, 14, 14);
-    currentY = 24;
+    doc.text(branding.organizationName, margin, y);
+    y += 10;
   }
 
+  // Titel
   doc.setFontSize(18);
-  doc.text(title, 14, currentY);
+  doc.text(title, margin, y);
 
-  return currentY;
+  // Content-Start
+  return y;
 };
+
+// Rendert NUR die Liste (Tabelle), kein Header, damit man Seite flexibel aufbauen kann.
+const addListTable = (doc: jsPDF, startY: number, complaints: Complaint[], margin = DEFAULT_MARGIN) => {
+  autoTable(doc, {
+    startY,
+    theme: 'grid',
+    margin: { left: margin, right: margin },
+    styles: { fontSize: 9, cellPadding: 2, overflow: 'linebreak' },
+    headStyles: { fontStyle: 'bold' },
+    columnStyles: {
+      0: { cellWidth: 30 }, // Vorgang
+      1: { cellWidth: 28 }, // Status
+      2: { cellWidth: 32 }, // Kategorie
+      3: { cellWidth: 26 }, // Priorität
+      4: { cellWidth: 30 }, // Standort
+      5: { cellWidth: 50 }, // Abteilung
+      6: { cellWidth: 22 }, // Datum
+    },
+    head: [['Vorgang', 'Status', 'Kategorie', 'Priorität', 'Standort', 'Abteilung', 'Datum']],
+    body: complaints.map((c) => [
+      c.caseNumber,
+      c.status,
+      c.category,
+      c.priority,
+      c.location,
+      c.department,
+      formatDate(c.createdAt),
+    ]),
+  });
+};
+
+const lastTableY = (doc: jsPDF, fallback: number) =>
+  (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? fallback;
+
+const safeText = (value?: string) => (value && value.trim().length ? value.trim() : '—');
 
 export const exportComplaintPdf = async (complaint: Complaint, attachments: ComplaintAttachment[]) => {
   const doc = new jsPDF();
   const titleY = addBrandingHeader(doc, 'KlinikBeschwerde – Fallblatt');
 
   doc.setFontSize(11);
-  doc.text(`Vorgangsnummer: ${complaint.caseNumber}`, 14, titleY + 10);
-  doc.text(`Erstellt am: ${formatDateTime(complaint.createdAt)}`, 14, titleY + 16);
+  doc.text(`Vorgangsnummer: ${complaint.caseNumber}`, DEFAULT_MARGIN, titleY + 10);
+  doc.text(`Erstellt am: ${formatDateTime(complaint.createdAt)}`, DEFAULT_MARGIN, titleY + 16);
 
   autoTable(doc, {
     startY: titleY + 22,
+    margin: { left: DEFAULT_MARGIN, right: DEFAULT_MARGIN },
     head: [['Feld', 'Wert']],
     body: [
       ['Status', complaint.status],
@@ -45,61 +90,80 @@ export const exportComplaintPdf = async (complaint: Complaint, attachments: Comp
       ['Kategorie', complaint.category],
       ['Kanal', complaint.channel],
       ['Melder-Typ', complaint.reporterType],
-      ['Melder-Name', complaint.reporterName || '—'],
-      ['Kontakt', complaint.contact || '—'],
+      ['Melder-Name', safeText(complaint.reporterName)],
+      ['Kontakt', safeText(complaint.contact)],
       ['Standort', complaint.location],
       ['Abteilung/Station', complaint.department],
-      ['Beteiligte Personen', complaint.involvedPeople || '—'],
-      ['Verantwortlich', complaint.owner || '—'],
+      ['Beteiligte Personen', safeText(complaint.involvedPeople)],
+      ['Verantwortlich', safeText(complaint.owner)],
       ['Frist', complaint.dueDate ? formatDate(complaint.dueDate) : '—'],
-      ['Schlagwörter', complaint.tags.length ? complaint.tags.join(', ') : '—'],
+      ['Schlagwörter', complaint.tags?.length ? complaint.tags.join(', ') : '—'],
     ],
   });
 
-  const baseY = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || 120;
+  let currentY = lastTableY(doc, titleY + 120) + 10;
 
-  doc.text('Beschreibung', 14, baseY + 10);
+  // Beschreibung
+  doc.setFontSize(11);
+  doc.text('Beschreibung', DEFAULT_MARGIN, currentY);
+  currentY += 6;
+
   doc.setFontSize(10);
-  doc.text(doc.splitTextToSize(complaint.description, 180), 14, baseY + 16);
+  doc.text(doc.splitTextToSize(complaint.description || '—', 180), DEFAULT_MARGIN, currentY);
+  currentY += 18;
 
-  let currentY = baseY + 36;
-
-  if (complaint.measures) {
+  // Maßnahmen / Notizen
+  if (complaint.measures && complaint.measures.trim()) {
     doc.setFontSize(11);
-    doc.text('Maßnahmen / Notizen', 14, currentY);
+    doc.text('Maßnahmen / Notizen', DEFAULT_MARGIN, currentY);
+    currentY += 6;
+
     doc.setFontSize(10);
-    doc.text(doc.splitTextToSize(complaint.measures, 180), 14, currentY + 6);
-    currentY += 26;
+    doc.text(doc.splitTextToSize(complaint.measures, 180), DEFAULT_MARGIN, currentY);
+    currentY += 18;
   }
 
+  // Anlagen-Tabelle
   autoTable(doc, {
-    startY: currentY + 6,
+    startY: currentY,
+    margin: { left: DEFAULT_MARGIN, right: DEFAULT_MARGIN },
     head: [['Anlage', 'Typ', 'Größe (KB)']],
     body: attachments.length
-      ? attachments.map((item) => [item.filename, item.mimeType, String(Math.round(item.size / 1024))])
+      ? attachments.map((a) => [a.filename, a.mimeType, String(Math.round(a.size / 1024))])
       : [['Keine Anlagen', '—', '—']],
   });
 
-  const imageAttachments = attachments.filter((item) => item.mimeType.startsWith('image/')).slice(0, 2);
+  currentY = lastTableY(doc, currentY) + 8;
+
+  // Bildvorschau (max 2)
+  const imageAttachments = attachments
+    .filter((a) => a.mimeType?.startsWith('image/') && a.blob)
+    .slice(0, 2);
 
   if (imageAttachments.length) {
-    let imageY = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || currentY + 40;
-
     doc.setFontSize(11);
-    doc.text('Bildvorschau (MVP)', 14, imageY + 10);
-    imageY += 16;
+    doc.text('Bildvorschau (MVP)', DEFAULT_MARGIN, currentY + 6);
+    currentY += 12;
 
-    for (const attachment of imageAttachments) {
+    for (const a of imageAttachments) {
       try {
-        const dataUrl = await blobToDataUrl(attachment.blob);
-        const format = attachment.mimeType.includes('png') ? 'PNG' : 'JPEG';
+        const dataUrl = await blobToDataUrl(a.blob);
+        const format = a.mimeType.includes('png') ? 'PNG' : 'JPEG';
 
-        doc.addImage(dataUrl, format, 14, imageY, 60, 40);
-        doc.text(attachment.filename, 78, imageY + 6);
-        imageY += 46;
+        // Falls zu wenig Platz: neue Seite
+        if (currentY > doc.internal.pageSize.getHeight() - 60) {
+          doc.addPage();
+          currentY = DEFAULT_MARGIN;
+        }
+
+        doc.addImage(dataUrl, format, DEFAULT_MARGIN, currentY, 60, 40);
+        doc.setFontSize(10);
+        doc.text(a.filename, DEFAULT_MARGIN + 66, currentY + 6);
+        currentY += 46;
       } catch {
-        doc.text(`Bild ${attachment.filename} konnte nicht eingebettet werden.`, 14, imageY + 6);
-        imageY += 12;
+        doc.setFontSize(10);
+        doc.text(`Bild ${a.filename} konnte nicht eingebettet werden.`, DEFAULT_MARGIN, currentY + 6);
+        currentY += 12;
       }
     }
   }
@@ -122,61 +186,42 @@ export const exportDashboardPdf = ({
   const titleY = addBrandingHeader(doc, title);
 
   doc.setFontSize(11);
-  doc.text(`Erstellt am: ${formatDateTime(new Date().toISOString())}`, 14, titleY + 8);
-  doc.text(`Filter: ${filters.length ? filters.join(', ') : 'Keine'}`, 14, titleY + 14);
+  doc.text(`Erstellt am: ${formatDateTime(new Date().toISOString())}`, DEFAULT_MARGIN, titleY + 8);
+
+  const filterText = `Filter: ${filters.length ? filters.join(', ') : 'Keine'}`;
+  doc.setFontSize(10);
+  doc.text(doc.splitTextToSize(filterText, 180), DEFAULT_MARGIN, titleY + 14);
 
   autoTable(doc, {
-    startY: titleY + 20,
+    startY: titleY + 22,
+    margin: { left: DEFAULT_MARGIN, right: DEFAULT_MARGIN },
     head: [['Kennzahl', 'Wert']],
     body: kpis.map((kpi) => [kpi.label, String(kpi.value)]),
   });
 
-  let currentY = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || titleY + 40;
+  let currentY = lastTableY(doc, titleY + 40);
 
   tables.forEach((table) => {
     currentY += 12;
     doc.setFontSize(12);
-    doc.text(table.title, 14, currentY);
+    doc.text(table.title, DEFAULT_MARGIN, currentY);
 
     autoTable(doc, {
       startY: currentY + 4,
+      margin: { left: DEFAULT_MARGIN, right: DEFAULT_MARGIN },
       head: [table.head],
       body: table.body,
     });
 
-    currentY = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || currentY + 40;
+    currentY = lastTableY(doc, currentY + 40);
+
+    if (currentY > doc.internal.pageSize.getHeight() - 30) {
+      doc.addPage();
+      currentY = DEFAULT_MARGIN;
+    }
   });
 
   doc.save('KlinikBeschwerde_Dashboard.pdf');
-};
-
-// Rendert NUR die Tabelle (kein Header), damit man die Seite flexibel davor aufbauen kann.
-const addListTable = (doc: jsPDF, startY: number, complaints: Complaint[]) => {
-  autoTable(doc, {
-    startY,
-    theme: 'grid',
-    styles: { fontSize: 9, cellPadding: 2, overflow: 'linebreak' },
-    headStyles: { fontStyle: 'bold' },
-    columnStyles: {
-      0: { cellWidth: 30 },
-      1: { cellWidth: 28 },
-      2: { cellWidth: 32 },
-      3: { cellWidth: 26 },
-      4: { cellWidth: 30 },
-      5: { cellWidth: 50 },
-      6: { cellWidth: 22 },
-    },
-    head: [['Vorgang', 'Status', 'Kategorie', 'Priorität', 'Standort', 'Abteilung', 'Datum']],
-    body: complaints.map((complaint) => [
-      complaint.caseNumber,
-      complaint.status,
-      complaint.category,
-      complaint.priority,
-      complaint.location,
-      complaint.department,
-      formatDate(complaint.createdAt),
-    ]),
-  });
 };
 
 export const exportListPdf = ({
@@ -189,13 +234,16 @@ export const exportListPdf = ({
   complaints: Complaint[];
 }) => {
   const doc = new jsPDF('landscape');
-  const margin = 14;
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const margin = DEFAULT_MARGIN;
 
-  const titleY = addBrandingHeader(doc, title);
+  const titleY = addBrandingHeader(doc, title, margin);
+
   doc.setFontSize(11);
-  doc.text(`Filter: ${filters.length ? filters.join(', ') : 'Keine'}`, margin, titleY + 8);
+  const filterText = `Filter: ${filters.length ? filters.join(', ') : 'Keine'}`;
+  doc.text(doc.splitTextToSize(filterText, pageWidth - margin * 2), margin, titleY + 8);
 
-  addListTable(doc, titleY + 14, complaints);
+  addListTable(doc, titleY + 14, complaints, margin);
 
   doc.save('KlinikBeschwerde_Vorgaenge.pdf');
 };
@@ -220,13 +268,13 @@ export const exportDashboardWithListPdf = ({
   const doc = new jsPDF('landscape');
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  const margin = 14;
+  const margin = DEFAULT_MARGIN;
 
   const includeDashboard = options?.includeDashboard ?? true;
   const includeList = options?.includeList ?? true;
   const includeDetails = options?.includeDetails ?? false;
 
-  // WICHTIG: Proportional einpassen (contain) -> keine verzerrten Pie-Charts mehr
+  // Proportional einpassen (contain) -> keine Verzerrung
   const addImageContain = (document: jsPDF, dataUrl: string, x: number, y: number, width: number, height: number) => {
     const props = document.getImageProperties(dataUrl);
     const scale = Math.min(width / props.width, height / props.height);
@@ -238,11 +286,11 @@ export const exportDashboardWithListPdf = ({
   };
 
   const renderDashboardPage = (pageTitle: string, chartSlice: Array<{ title: string; dataUrl?: string }>) => {
-    const titleY = addBrandingHeader(doc, pageTitle);
+    const titleY = addBrandingHeader(doc, pageTitle, margin);
 
     doc.setFontSize(11);
     doc.text(`Exportiert am: ${formatDateTime(new Date().toISOString())}`, margin, titleY + 8);
-    doc.text(`Filter: ${filters.length ? filters.join(', ') : 'Keine'}`, margin, titleY + 14);
+    doc.text(doc.splitTextToSize(`Filter: ${filters.length ? filters.join(', ') : 'Keine'}`, pageWidth - margin * 2), margin, titleY + 14);
 
     const kpiY = titleY + 22;
     const kpiGap = 6;
@@ -300,19 +348,28 @@ export const exportDashboardWithListPdf = ({
 
   if (includeList) {
     doc.addPage('landscape');
-    const listTitleY = addBrandingHeader(doc, `${title} – Vorgangsliste`);
+    const listTitleY = addBrandingHeader(doc, `${title} – Vorgangsliste`, margin);
+
     doc.setFontSize(11);
-    doc.text(`Filter: ${filters.length ? filters.join(', ') : 'Keine'}`, margin, listTitleY + 8);
-    addListTable(doc, listTitleY + 14, complaints);
+    doc.text(doc.splitTextToSize(`Filter: ${filters.length ? filters.join(', ') : 'Keine'}`, pageWidth - margin * 2), margin, listTitleY + 8);
+
+    addListTable(doc, listTitleY + 14, complaints, margin);
   }
 
   if (includeDetails) {
     doc.addPage('landscape');
-    const detailsTitleY = addBrandingHeader(doc, `${title} – Detailtabellen`);
+    const detailsTitleY = addBrandingHeader(doc, `${title} – Detailtabellen`, margin);
     let currentY = detailsTitleY + 10;
 
     detailTables.forEach((table) => {
       currentY += 8;
+
+      // Seitenumbruch, wenn Überschrift+Tabelle nicht mehr passt (grob)
+      if (currentY > pageHeight - 40) {
+        doc.addPage('landscape');
+        currentY = margin;
+      }
+
       doc.setFontSize(12);
       doc.text(table.title, margin, currentY);
 
@@ -326,7 +383,7 @@ export const exportDashboardWithListPdf = ({
         margin: { left: margin, right: margin },
       });
 
-      currentY = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || currentY + 30;
+      currentY = lastTableY(doc, currentY + 30);
 
       if (currentY > pageHeight - 40) {
         doc.addPage('landscape');

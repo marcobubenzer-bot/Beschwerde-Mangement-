@@ -24,12 +24,15 @@ const StartPage = () => {
 
   const handleAdminSubmit = (event: React.FormEvent) => {
     event.preventDefault();
+
     if (authenticateAdmin(adminPin)) {
       setAdminError('');
       setAdminPin('');
+      setShowAdminLogin(false);
       navigate('/admin/dashboard');
       return;
     }
+
     setAdminError('Passwort ist nicht korrekt.');
   };
 
