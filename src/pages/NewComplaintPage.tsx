@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import TagInput from '../components/TagInput';
 import { complaintRepository } from '../storage/indexedDbComplaintRepository';
@@ -18,23 +18,40 @@ interface AttachmentDraft {
   previewUrl: string;
 }
 
+const reporterTypeMap = {
+  partien: 'Patient',
+  mitarbeit: 'Mitarbeitende',
+  sonstige: 'Sonstige',
+} as const;
+
+const getReporterTypeFromQuery = (value: string | null): Complaint['reporterType'] => {
+  if (!value) return 'Patient';
+  return reporterTypeMap[value as keyof typeof reporterTypeMap] ?? 'Patient';
+};
+
 const NewComplaintPage = ({ mode }: NewComplaintPageProps) => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const settings = useMemo(() => loadSettings(), []);
   const isAdmin = mode === 'admin';
+  const initialReporterType = useMemo(
+    () => (isAdmin ? 'Patient' : getReporterTypeFromQuery(searchParams.get('type'))),
+    [isAdmin, searchParams]
+  );
 
   const [form, setForm] = useState<Complaint>({
     id: uuidv4(),
     caseNumber: generateCaseNumber(),
     createdAt: new Date().toISOString(),
-    reporterType: 'Patient',
+    reporterType: initialReporterType,
     reporterName: '',
     contact: '',
     location: settings.locations[0] ?? '',
     department: settings.departments[0] ?? '',
     category: (settings.categories[0] as Complaint['category']) ?? 'Pflege',
     priority: 'Mittel',
-    channel: 'Telefon',
+    channel: isAdmin ? 'Telefon' : 'Online',
+    origin: isAdmin ? 'admin' : 'report',
     description: '',
     involvedPeople: '',
     consent: false,
@@ -57,8 +74,11 @@ const NewComplaintPage = ({ mode }: NewComplaintPageProps) => {
       location: prev.location || settings.locations[0] || '',
       department: prev.department || settings.departments[0] || '',
       category: (prev.category || settings.categories[0]) as Complaint['category'],
+      reporterType: isAdmin ? prev.reporterType : initialReporterType,
+      channel: isAdmin ? prev.channel : 'Online',
+      origin: isAdmin ? 'admin' : 'report',
     }));
-  }, [settings]);
+  }, [initialReporterType, isAdmin, settings]);
 
   useEffect(() => {
     draftsRef.current = drafts;
@@ -121,6 +141,8 @@ const NewComplaintPage = ({ mode }: NewComplaintPageProps) => {
     const attachmentIds = await persistAttachments(form.id);
     const complaint: Complaint = {
       ...form,
+      channel: isAdmin ? form.channel : 'Online',
+      origin: isAdmin ? 'admin' : 'report',
       reporterName: form.reporterName?.trim() || undefined,
       contact: form.contact?.trim() || undefined,
       involvedPeople: form.involvedPeople?.trim() || undefined,
@@ -222,16 +244,22 @@ const NewComplaintPage = ({ mode }: NewComplaintPageProps) => {
             </label>
             <label>
               Kanal *
-              <select
-                value={form.channel}
-                onChange={(event) => setForm({ ...form, channel: event.target.value as Complaint['channel'] })}
-              >
-                <option value="Telefon">Telefon</option>
-                <option value="E-Mail">E-Mail</option>
-                <option value="Brief">Brief</option>
-                <option value="Persönlich">Persönlich</option>
-                <option value="Online">Online</option>
-              </select>
+              {isAdmin ? (
+                <select
+                  value={form.channel}
+                  onChange={(event) => setForm({ ...form, channel: event.target.value as Complaint['channel'] })}
+                >
+                  <option value="Telefon">Telefon</option>
+                  <option value="E-Mail">E-Mail</option>
+                  <option value="Brief">Brief</option>
+                  <option value="Persönlich">Persönlich</option>
+                  <option value="Online">Online</option>
+                </select>
+              ) : (
+                <div className="static-field">
+                  <strong>Online</strong>
+                </div>
+              )}
             </label>
           </div>
         </div>
