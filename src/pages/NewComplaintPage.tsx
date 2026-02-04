@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import TagInput from '../components/TagInput';
 import { complaintRepository } from '../storage/indexedDbComplaintRepository';
@@ -18,23 +18,40 @@ interface AttachmentDraft {
   previewUrl: string;
 }
 
+const reporterTypeMap = {
+  partien: 'Patient',
+  mitarbeit: 'Mitarbeitende',
+  sonstige: 'Sonstige',
+} as const;
+
+const getReporterTypeFromQuery = (value: string | null): Complaint['reporterType'] => {
+  if (!value) return 'Patient';
+  return reporterTypeMap[value as keyof typeof reporterTypeMap] ?? 'Patient';
+};
+
 const NewComplaintPage = ({ mode }: NewComplaintPageProps) => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const settings = useMemo(() => loadSettings(), []);
   const isAdmin = mode === 'admin';
+  const initialReporterType = useMemo(
+    () => (isAdmin ? 'Patient' : getReporterTypeFromQuery(searchParams.get('type'))),
+    [isAdmin, searchParams]
+  );
 
   const [form, setForm] = useState<Complaint>({
     id: uuidv4(),
     caseNumber: generateCaseNumber(),
     createdAt: new Date().toISOString(),
-    reporterType: 'Patient',
+    reporterType: initialReporterType,
     reporterName: '',
     contact: '',
     location: settings.locations[0] ?? '',
     department: settings.departments[0] ?? '',
     category: (settings.categories[0] as Complaint['category']) ?? 'Pflege',
     priority: 'Mittel',
-    channel: 'Telefon',
+    channel: isAdmin ? 'Telefon' : 'Online',
+    origin: isAdmin ? 'admin' : 'report',
     description: '',
     involvedPeople: '',
     consent: false,
@@ -57,8 +74,11 @@ const NewComplaintPage = ({ mode }: NewComplaintPageProps) => {
       location: prev.location || settings.locations[0] || '',
       department: prev.department || settings.departments[0] || '',
       category: (prev.category || settings.categories[0]) as Complaint['category'],
+      reporterType: prev.reporterType || initialReporterType,
+      channel: isAdmin ? prev.channel : 'Online',
+      origin: isAdmin ? 'admin' : 'report',
     }));
-  }, [settings]);
+  }, [initialReporterType, isAdmin, settings]);
 
   useEffect(() => {
     draftsRef.current = drafts;
@@ -121,6 +141,8 @@ const NewComplaintPage = ({ mode }: NewComplaintPageProps) => {
     const attachmentIds = await persistAttachments(form.id);
     const complaint: Complaint = {
       ...form,
+      channel: isAdmin ? form.channel : 'Online',
+      origin: isAdmin ? 'admin' : 'report',
       reporterName: form.reporterName?.trim() || undefined,
       contact: form.contact?.trim() || undefined,
       involvedPeople: form.involvedPeople?.trim() || undefined,
@@ -151,7 +173,9 @@ const NewComplaintPage = ({ mode }: NewComplaintPageProps) => {
               Melder-Typ *
               <select
                 value={form.reporterType}
-                onChange={(event) => setForm({ ...form, reporterType: event.target.value as Complaint['reporterType'] })}
+                onChange={(event) =>
+                  setForm((prev) => ({ ...prev, reporterType: event.target.value as Complaint['reporterType'] }))
+                }
               >
                 <option value="Patient">Patient</option>
                 <option value="Angehörige">Angehörige</option>
@@ -163,7 +187,7 @@ const NewComplaintPage = ({ mode }: NewComplaintPageProps) => {
               Name (optional)
               <input
                 value={form.reporterName}
-                onChange={(event) => setForm({ ...form, reporterName: event.target.value })}
+                onChange={(event) => setForm((prev) => ({ ...prev, reporterName: event.target.value }))}
                 placeholder="Optionaler Name"
               />
             </label>
@@ -171,7 +195,7 @@ const NewComplaintPage = ({ mode }: NewComplaintPageProps) => {
               Kontakt (optional)
               <input
                 value={form.contact}
-                onChange={(event) => setForm({ ...form, contact: event.target.value })}
+                onChange={(event) => setForm((prev) => ({ ...prev, contact: event.target.value }))}
                 placeholder="Telefon oder E-Mail"
               />
             </label>
@@ -186,7 +210,7 @@ const NewComplaintPage = ({ mode }: NewComplaintPageProps) => {
               <input
                 list="locations"
                 value={form.location}
-                onChange={(event) => setForm({ ...form, location: event.target.value })}
+                onChange={(event) => setForm((prev) => ({ ...prev, location: event.target.value }))}
               />
               <datalist id="locations">
                 {settings.locations.map((item) => (
@@ -199,7 +223,7 @@ const NewComplaintPage = ({ mode }: NewComplaintPageProps) => {
               <input
                 list="departments"
                 value={form.department}
-                onChange={(event) => setForm({ ...form, department: event.target.value })}
+                onChange={(event) => setForm((prev) => ({ ...prev, department: event.target.value }))}
               />
               <datalist id="departments">
                 {settings.departments.map((item) => (
@@ -211,7 +235,9 @@ const NewComplaintPage = ({ mode }: NewComplaintPageProps) => {
               Kategorie *
               <select
                 value={form.category}
-                onChange={(event) => setForm({ ...form, category: event.target.value as Complaint['category'] })}
+                onChange={(event) =>
+                  setForm((prev) => ({ ...prev, category: event.target.value as Complaint['category'] }))
+                }
               >
                 {settings.categories.map((item) => (
                   <option key={item} value={item}>
@@ -222,16 +248,24 @@ const NewComplaintPage = ({ mode }: NewComplaintPageProps) => {
             </label>
             <label>
               Kanal *
-              <select
-                value={form.channel}
-                onChange={(event) => setForm({ ...form, channel: event.target.value as Complaint['channel'] })}
-              >
-                <option value="Telefon">Telefon</option>
-                <option value="E-Mail">E-Mail</option>
-                <option value="Brief">Brief</option>
-                <option value="Persönlich">Persönlich</option>
-                <option value="Online">Online</option>
-              </select>
+              {isAdmin ? (
+                <select
+                  value={form.channel}
+                  onChange={(event) =>
+                    setForm((prev) => ({ ...prev, channel: event.target.value as Complaint['channel'] }))
+                  }
+                >
+                  <option value="Telefon">Telefon</option>
+                  <option value="E-Mail">E-Mail</option>
+                  <option value="Brief">Brief</option>
+                  <option value="Persönlich">Persönlich</option>
+                  <option value="Online">Online</option>
+                </select>
+              ) : (
+                <div className="static-field">
+                  <strong>Online</strong>
+                </div>
+              )}
             </label>
           </div>
         </div>
@@ -242,7 +276,7 @@ const NewComplaintPage = ({ mode }: NewComplaintPageProps) => {
             Beschreibung *
             <textarea
               value={form.description}
-              onChange={(event) => setForm({ ...form, description: event.target.value })}
+              onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
               placeholder="Was ist passiert? Wann? Wer ist betroffen?"
               rows={5}
             />
@@ -252,14 +286,16 @@ const NewComplaintPage = ({ mode }: NewComplaintPageProps) => {
               Beteiligte Personen (optional)
               <input
                 value={form.involvedPeople}
-                onChange={(event) => setForm({ ...form, involvedPeople: event.target.value })}
+                onChange={(event) => setForm((prev) => ({ ...prev, involvedPeople: event.target.value }))}
               />
             </label>
             <label>
               Priorität *
               <select
                 value={form.priority}
-                onChange={(event) => setForm({ ...form, priority: event.target.value as Complaint['priority'] })}
+                onChange={(event) =>
+                  setForm((prev) => ({ ...prev, priority: event.target.value as Complaint['priority'] }))
+                }
               >
                 <option value="Niedrig">Niedrig</option>
                 <option value="Mittel">Mittel</option>
@@ -271,7 +307,7 @@ const NewComplaintPage = ({ mode }: NewComplaintPageProps) => {
           <TagInput
             label="Schlagwörter"
             tags={form.tags}
-            onChange={(tags) => setForm({ ...form, tags })}
+            onChange={(tags) => setForm((prev) => ({ ...prev, tags }))}
             placeholder="z. B. Wartezeit, Service"
           />
           <div className="attachment">
@@ -306,7 +342,9 @@ const NewComplaintPage = ({ mode }: NewComplaintPageProps) => {
                 Status
                 <select
                   value={form.status}
-                  onChange={(event) => setForm({ ...form, status: event.target.value as Complaint['status'] })}
+                  onChange={(event) =>
+                    setForm((prev) => ({ ...prev, status: event.target.value as Complaint['status'] }))
+                  }
                 >
                   <option value="Neu">Neu</option>
                   <option value="In Prüfung">In Prüfung</option>
@@ -320,7 +358,7 @@ const NewComplaintPage = ({ mode }: NewComplaintPageProps) => {
                 Verantwortliche Person (optional)
                 <input
                   value={form.owner}
-                  onChange={(event) => setForm({ ...form, owner: event.target.value })}
+                  onChange={(event) => setForm((prev) => ({ ...prev, owner: event.target.value }))}
                 />
               </label>
               <label>
@@ -328,7 +366,7 @@ const NewComplaintPage = ({ mode }: NewComplaintPageProps) => {
                 <input
                   type="date"
                   value={form.dueDate}
-                  onChange={(event) => setForm({ ...form, dueDate: event.target.value })}
+                  onChange={(event) => setForm((prev) => ({ ...prev, dueDate: event.target.value }))}
                 />
               </label>
             </div>
@@ -336,7 +374,7 @@ const NewComplaintPage = ({ mode }: NewComplaintPageProps) => {
               Maßnahmen / Notizen (optional)
               <textarea
                 value={form.measures}
-                onChange={(event) => setForm({ ...form, measures: event.target.value })}
+                onChange={(event) => setForm((prev) => ({ ...prev, measures: event.target.value }))}
                 rows={4}
               />
             </label>
@@ -348,7 +386,7 @@ const NewComplaintPage = ({ mode }: NewComplaintPageProps) => {
             <input
               type="checkbox"
               checked={form.consent}
-              onChange={(event) => setForm({ ...form, consent: event.target.checked })}
+              onChange={(event) => setForm((prev) => ({ ...prev, consent: event.target.checked }))}
             />
             <span>Ich bestätige die Datenschutz-Einwilligung.</span>
           </label>
@@ -366,7 +404,7 @@ const NewComplaintPage = ({ mode }: NewComplaintPageProps) => {
             onClick={() => {
               drafts.forEach((draft) => URL.revokeObjectURL(draft.previewUrl));
               setDrafts([]);
-              setForm({ ...form, description: '', measures: '', tags: [], attachmentIds: [] });
+              setForm((prev) => ({ ...prev, description: '', measures: '', tags: [], attachmentIds: [] }));
             }}
           >
             Formular leeren

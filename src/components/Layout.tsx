@@ -1,17 +1,12 @@
 import { NavLink } from 'react-router-dom';
 import { PropsWithChildren } from 'react';
+import BrandingMark from './BrandingMark';
 
 const Layout = ({ children }: PropsWithChildren) => {
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <div className="brand">
-          <div className="brand-icon">KB</div>
-          <div>
-            <h1>KlinikBeschwerde</h1>
-            <p>MVP Beschwerdemanagement</p>
-          </div>
-        </div>
+        <BrandingMark subtitle="MVP Beschwerdemanagement" />
         <nav className="nav">
           <NavLink to="/dashboard">Dashboard</NavLink>
           <NavLink to="/new">Neue Beschwerde</NavLink>
