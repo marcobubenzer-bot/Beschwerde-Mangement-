@@ -15,19 +15,23 @@ const blobToDataUrl = (blob: Blob) =>
 const addBrandingHeader = (doc: jsPDF, title: string) => {
   const branding = getBranding();
   let currentY = 20;
+
   if (branding.showBranding && branding.organizationName) {
     doc.setFontSize(12);
     doc.text(branding.organizationName, 14, 14);
     currentY = 24;
   }
+
   doc.setFontSize(18);
   doc.text(title, 14, currentY);
+
   return currentY;
 };
 
 export const exportComplaintPdf = async (complaint: Complaint, attachments: ComplaintAttachment[]) => {
   const doc = new jsPDF();
   const titleY = addBrandingHeader(doc, 'KlinikBeschwerde – Fallblatt');
+
   doc.setFontSize(11);
   doc.text(`Vorgangsnummer: ${complaint.caseNumber}`, 14, titleY + 10);
   doc.text(`Erstellt am: ${formatDateTime(complaint.createdAt)}`, 14, titleY + 16);
@@ -53,11 +57,13 @@ export const exportComplaintPdf = async (complaint: Complaint, attachments: Comp
   });
 
   const baseY = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || 120;
+
   doc.text('Beschreibung', 14, baseY + 10);
   doc.setFontSize(10);
   doc.text(doc.splitTextToSize(complaint.description, 180), 14, baseY + 16);
 
   let currentY = baseY + 36;
+
   if (complaint.measures) {
     doc.setFontSize(11);
     doc.text('Maßnahmen / Notizen', 14, currentY);
@@ -75,15 +81,19 @@ export const exportComplaintPdf = async (complaint: Complaint, attachments: Comp
   });
 
   const imageAttachments = attachments.filter((item) => item.mimeType.startsWith('image/')).slice(0, 2);
+
   if (imageAttachments.length) {
     let imageY = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || currentY + 40;
+
     doc.setFontSize(11);
     doc.text('Bildvorschau (MVP)', 14, imageY + 10);
     imageY += 16;
+
     for (const attachment of imageAttachments) {
       try {
         const dataUrl = await blobToDataUrl(attachment.blob);
         const format = attachment.mimeType.includes('png') ? 'PNG' : 'JPEG';
+
         doc.addImage(dataUrl, format, 14, imageY, 60, 40);
         doc.text(attachment.filename, 78, imageY + 6);
         imageY += 46;
@@ -110,6 +120,7 @@ export const exportDashboardPdf = ({
 }) => {
   const doc = new jsPDF();
   const titleY = addBrandingHeader(doc, title);
+
   doc.setFontSize(11);
   doc.text(`Erstellt am: ${formatDateTime(new Date().toISOString())}`, 14, titleY + 8);
   doc.text(`Filter: ${filters.length ? filters.join(', ') : 'Keine'}`, 14, titleY + 14);
@@ -120,27 +131,29 @@ export const exportDashboardPdf = ({
     body: kpis.map((kpi) => [kpi.label, String(kpi.value)]),
   });
 
-  let currentY =
-    (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || titleY + 40;
+  let currentY = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || titleY + 40;
 
   tables.forEach((table) => {
     currentY += 12;
     doc.setFontSize(12);
     doc.text(table.title, 14, currentY);
+
     autoTable(doc, {
       startY: currentY + 4,
       head: [table.head],
       body: table.body,
     });
+
     currentY = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || currentY + 40;
   });
 
   doc.save('KlinikBeschwerde_Dashboard.pdf');
 };
 
-const addListTable = (doc: jsPDF, complaints: Complaint[]) => {
+// Rendert NUR die Tabelle (kein Header), damit man die Seite flexibel davor aufbauen kann.
+const addListTable = (doc: jsPDF, startY: number, complaints: Complaint[]) => {
   autoTable(doc, {
-    startY: 32,
+    startY,
     theme: 'grid',
     styles: { fontSize: 9, cellPadding: 2, overflow: 'linebreak' },
     headStyles: { fontStyle: 'bold' },
@@ -151,6 +164,7 @@ const addListTable = (doc: jsPDF, complaints: Complaint[]) => {
       3: { cellWidth: 26 },
       4: { cellWidth: 30 },
       5: { cellWidth: 50 },
+      6: { cellWidth: 22 },
     },
     head: [['Vorgang', 'Status', 'Kategorie', 'Priorität', 'Standort', 'Abteilung', 'Datum']],
     body: complaints.map((complaint) => [
@@ -175,10 +189,13 @@ export const exportListPdf = ({
   complaints: Complaint[];
 }) => {
   const doc = new jsPDF('landscape');
+  const margin = 14;
+
   const titleY = addBrandingHeader(doc, title);
   doc.setFontSize(11);
-  doc.text(`Filter: ${filters.length ? filters.join(', ') : 'Keine'}`, 14, titleY + 8);
-  addListTable(doc, complaints);
+  doc.text(`Filter: ${filters.length ? filters.join(', ') : 'Keine'}`, margin, titleY + 8);
+
+  addListTable(doc, titleY + 14, complaints);
 
   doc.save('KlinikBeschwerde_Vorgaenge.pdf');
 };
@@ -204,18 +221,13 @@ export const exportDashboardWithListPdf = ({
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 14;
+
   const includeDashboard = options?.includeDashboard ?? true;
   const includeList = options?.includeList ?? true;
   const includeDetails = options?.includeDetails ?? false;
 
-  const addImageContain = (
-    document: jsPDF,
-    dataUrl: string,
-    x: number,
-    y: number,
-    width: number,
-    height: number
-  ) => {
+  // WICHTIG: Proportional einpassen (contain) -> keine verzerrten Pie-Charts mehr
+  const addImageContain = (document: jsPDF, dataUrl: string, x: number, y: number, width: number, height: number) => {
     const props = document.getImageProperties(dataUrl);
     const scale = Math.min(width / props.width, height / props.height);
     const drawWidth = props.width * scale;
@@ -227,6 +239,7 @@ export const exportDashboardWithListPdf = ({
 
   const renderDashboardPage = (pageTitle: string, chartSlice: Array<{ title: string; dataUrl?: string }>) => {
     const titleY = addBrandingHeader(doc, pageTitle);
+
     doc.setFontSize(11);
     doc.text(`Exportiert am: ${formatDateTime(new Date().toISOString())}`, margin, titleY + 8);
     doc.text(`Filter: ${filters.length ? filters.join(', ') : 'Keine'}`, margin, titleY + 14);
@@ -236,6 +249,7 @@ export const exportDashboardWithListPdf = ({
     const kpiCount = kpis.length;
     const kpiWidth = (pageWidth - margin * 2 - kpiGap * (kpiCount - 1)) / kpiCount;
     const kpiHeight = 18;
+
     kpis.forEach((kpi, index) => {
       const x = margin + index * (kpiWidth + kpiGap);
       doc.setDrawColor(227, 231, 239);
@@ -254,16 +268,21 @@ export const exportDashboardWithListPdf = ({
 
     chartSlice.forEach((chart, index) => {
       const x = margin + index * (chartWidth + chartGap);
+
+      // Card Look
       const cardPadding = 8;
       doc.setDrawColor(227, 231, 239);
       doc.setFillColor(246, 248, 252);
       doc.roundedRect(x, chartY, chartWidth, chartHeight, 3, 3, 'FD');
+
       doc.setFontSize(12);
       doc.text(chart.title, x + cardPadding, chartY + 10);
+
       const imageX = x + cardPadding;
       const imageY = chartY + 14;
       const imageWidth = chartWidth - cardPadding * 2;
       const imageHeight = chartHeight - cardPadding * 2 - 6;
+
       if (chart.dataUrl) {
         addImageContain(doc, chart.dataUrl, imageX, imageY, imageWidth, imageHeight);
       } else {
@@ -275,7 +294,6 @@ export const exportDashboardWithListPdf = ({
 
   if (includeDashboard) {
     renderDashboardPage(`${title} – Seite 1`, dashboardCharts.slice(0, 2));
-
     doc.addPage('landscape');
     renderDashboardPage(`${title} – Seite 2`, dashboardCharts.slice(2, 4));
   }
@@ -285,17 +303,19 @@ export const exportDashboardWithListPdf = ({
     const listTitleY = addBrandingHeader(doc, `${title} – Vorgangsliste`);
     doc.setFontSize(11);
     doc.text(`Filter: ${filters.length ? filters.join(', ') : 'Keine'}`, margin, listTitleY + 8);
-    addListTable(doc, complaints);
+    addListTable(doc, listTitleY + 14, complaints);
   }
 
   if (includeDetails) {
     doc.addPage('landscape');
     const detailsTitleY = addBrandingHeader(doc, `${title} – Detailtabellen`);
     let currentY = detailsTitleY + 10;
+
     detailTables.forEach((table) => {
       currentY += 8;
       doc.setFontSize(12);
       doc.text(table.title, margin, currentY);
+
       autoTable(doc, {
         startY: currentY + 4,
         theme: 'grid',
@@ -305,7 +325,9 @@ export const exportDashboardWithListPdf = ({
         body: table.body,
         margin: { left: margin, right: margin },
       });
+
       currentY = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || currentY + 30;
+
       if (currentY > pageHeight - 40) {
         doc.addPage('landscape');
         currentY = margin;

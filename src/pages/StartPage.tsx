@@ -16,9 +16,10 @@ const StartPage = () => {
   };
 
   const handleAdminSelect = () => {
+    // Security: niemals vorausfüllen – beim Öffnen immer leeren
     setAdminPin('');
-    setShowAdminLogin(true);
     setAdminError('');
+    setShowAdminLogin(true);
   };
 
   const handleAdminSubmit = (event: React.FormEvent) => {
@@ -38,24 +39,29 @@ const StartPage = () => {
         <BrandingMark subtitle="Beschwerdeprotokoll starten" />
         <p className="muted">Bitte wählen Sie zuerst Ihren Meldetyp.</p>
       </div>
+
       <div className="start-grid">
         <button type="button" className="card start-card" onClick={() => handleReporterSelect('partien')}>
           <h3>Partien</h3>
           <p>Für Patient:innen und Angehörige.</p>
         </button>
+
         <button type="button" className="card start-card" onClick={() => handleReporterSelect('mitarbeit')}>
           <h3>Mitarbeit</h3>
           <p>Für Mitarbeitende im Klinikbetrieb.</p>
         </button>
+
         <button type="button" className="card start-card" onClick={() => handleReporterSelect('sonstige')}>
           <h3>Sonstige</h3>
           <p>Weitere meldeberechtigte Personen.</p>
         </button>
+
         <button type="button" className="card start-card" onClick={handleAdminSelect}>
           <h3>Verwaltung</h3>
           <p>Nur für autorisierte Admins.</p>
         </button>
       </div>
+
       {showAdminLogin && (
         <div className="card start-admin">
           <h3>Admin-Login</h3>
@@ -64,22 +70,28 @@ const StartPage = () => {
               Passwort
               <input
                 type="password"
+                name="admin-pin"
                 value={adminPin}
                 onChange={(event) => setAdminPin(event.target.value)}
                 placeholder="Admin-PIN"
                 autoComplete="new-password"
               />
             </label>
+
             {adminError && <p className="form-error">{adminError}</p>}
+
             <div className="form-actions">
               <button type="submit" className="button primary">
                 Anmelden
               </button>
+
               <button
                 type="button"
                 className="button ghost"
                 onClick={() => {
+                  // Security: beim Schließen auch leeren
                   setAdminPin('');
+                  setAdminError('');
                   setShowAdminLogin(false);
                 }}
               >
