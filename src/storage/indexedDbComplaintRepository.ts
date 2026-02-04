@@ -19,14 +19,16 @@ export class IndexedDbComplaintRepository implements ComplaintRepository {
   }
 
   async create(complaint: Complaint): Promise<void> {
+    const sanitized = sanitizeComplaint(complaint);
     await runTransaction('complaints', 'readwrite', async (store) => {
-      await requestToPromise(store.add(complaint));
+      await requestToPromise(store.add(sanitized));
     });
   }
 
   async update(complaint: Complaint): Promise<void> {
+    const sanitized = sanitizeComplaint(complaint);
     await runTransaction('complaints', 'readwrite', async (store) => {
-      await requestToPromise(store.put(complaint));
+      await requestToPromise(store.put(sanitized));
     });
   }
 
@@ -42,5 +44,12 @@ export class IndexedDbComplaintRepository implements ComplaintRepository {
     });
   }
 }
+
+const sanitizeComplaint = (complaint: Complaint): Complaint => {
+  if (complaint.origin === 'report') {
+    return { ...complaint, channel: 'Online' };
+  }
+  return complaint;
+};
 
 export const complaintRepository = new IndexedDbComplaintRepository();
