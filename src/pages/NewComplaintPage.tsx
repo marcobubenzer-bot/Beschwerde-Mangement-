@@ -207,30 +207,46 @@ const NewComplaintPage = ({ mode }: NewComplaintPageProps) => {
           <div className="grid-2">
             <label>
               Standort *
-              <input
-                list="locations"
+              <select
                 value={form.location}
-                onChange={(event) => setForm((prev) => ({ ...prev, location: event.target.value }))}
-              />
-              <datalist id="locations">
-                {settings.locations.map((item) => (
-                  <option key={item} value={item} />
-                ))}
-              </datalist>
+                onChange={(event) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    location: event.target.value,
+                    department: settings.departments[0] ?? '',
+                  }))
+                }
+              >
+                {settings.locations.length ? (
+                  settings.locations.map((item) => (
+                    <option key={item} value={item}>
+                      {item}
+                    </option>
+                  ))
+                ) : (
+                  <option value="">Keine Standorte hinterlegt</option>
+                )}
+              </select>
             </label>
+
             <label>
               Abteilung/Station *
-              <input
-                list="departments"
+              <select
                 value={form.department}
                 onChange={(event) => setForm((prev) => ({ ...prev, department: event.target.value }))}
-              />
-              <datalist id="departments">
-                {settings.departments.map((item) => (
-                  <option key={item} value={item} />
-                ))}
-              </datalist>
+              >
+                {settings.departments.length ? (
+                  settings.departments.map((item) => (
+                    <option key={item} value={item}>
+                      {item}
+                    </option>
+                  ))
+                ) : (
+                  <option value="">Keine Abteilungen hinterlegt</option>
+                )}
+              </select>
             </label>
+
             <label>
               Kategorie *
               <select
@@ -246,6 +262,7 @@ const NewComplaintPage = ({ mode }: NewComplaintPageProps) => {
                 ))}
               </select>
             </label>
+
             <label>
               Kanal *
               {isAdmin ? (
@@ -281,6 +298,7 @@ const NewComplaintPage = ({ mode }: NewComplaintPageProps) => {
               rows={5}
             />
           </label>
+
           <div className="grid-2">
             <label>
               Beteiligte Personen (optional)
@@ -304,17 +322,20 @@ const NewComplaintPage = ({ mode }: NewComplaintPageProps) => {
               </select>
             </label>
           </div>
+
           <TagInput
             label="Schlagwörter"
             tags={form.tags}
             onChange={(tags) => setForm((prev) => ({ ...prev, tags }))}
             placeholder="z. B. Wartezeit, Service"
           />
+
           <div className="attachment">
             <label>
               Anlagen hinzufügen (Bilder)
               <input type="file" accept="image/png, image/jpeg, image/webp" multiple onChange={handleFileChange} />
             </label>
+
             {drafts.length > 0 && (
               <div className="attachment-grid">
                 {drafts.map((draft) => (
@@ -354,10 +375,15 @@ const NewComplaintPage = ({ mode }: NewComplaintPageProps) => {
                   <option value="Abgelehnt">Abgelehnt</option>
                 </select>
               </label>
+
               <label>
                 Verantwortliche Person (optional)
-                <input value={form.owner} onChange={(event) => setForm((prev) => ({ ...prev, owner: event.target.value }))} />
+                <input
+                  value={form.owner}
+                  onChange={(event) => setForm((prev) => ({ ...prev, owner: event.target.value }))}
+                />
               </label>
+
               <label>
                 Frist (optional)
                 <input
@@ -367,6 +393,7 @@ const NewComplaintPage = ({ mode }: NewComplaintPageProps) => {
                 />
               </label>
             </div>
+
             <label>
               Maßnahmen / Notizen (optional)
               <textarea
