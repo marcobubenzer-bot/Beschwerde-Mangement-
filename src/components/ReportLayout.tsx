@@ -1,17 +1,12 @@
 import { Link, Outlet } from 'react-router-dom';
+import BrandingMark from './BrandingMark';
 import ThemeToggle from './ThemeToggle';
 
 const ReportLayout = () => {
   return (
     <div className="report-shell">
       <header className="report-header">
-        <div className="brand">
-          <div className="brand-icon">KB</div>
-          <div>
-            <h1>KlinikBeschwerde</h1>
-            <p>Beschwerde einreichen</p>
-          </div>
-        </div>
+        <BrandingMark subtitle="Beschwerde einreichen" />
         <div className="header-actions">
           <Link to="/admin" className="button ghost">
             Admin-Bereich

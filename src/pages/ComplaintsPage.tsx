@@ -13,8 +13,8 @@ const initialFilters: ComplaintFilters = {
   status: 'Alle',
   category: 'Alle',
   priority: 'Alle',
-  location: '',
-  department: '',
+  location: 'Alle',
+  department: 'Alle',
 };
 
 const ComplaintsPage = () => {
@@ -67,7 +67,7 @@ const ComplaintsPage = () => {
         </div>
       </header>
 
-      <FiltersPanel filters={filters} categories={settings.categories} onChange={setFilters} />
+      <FiltersPanel filters={filters} settings={settings} onChange={setFilters} />
 
       <ComplaintTable complaints={filtered} onSelect={(complaint) => navigate(`/admin/complaints/${complaint.id}`)} />
     </section>

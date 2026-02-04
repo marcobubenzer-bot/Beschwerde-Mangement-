@@ -1,5 +1,6 @@
 import { PropsWithChildren, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import BrandingMark from './BrandingMark';
 import { authenticateAdmin, isAdminAuthenticated, requireAdminPin } from '../services/authService';
 
 const RequireAdmin = ({ children }: PropsWithChildren) => {
@@ -30,6 +31,9 @@ const RequireAdmin = ({ children }: PropsWithChildren) => {
 
   return (
     <section>
+      <div className="auth-header">
+        <BrandingMark subtitle="Admin-Bereich" />
+      </div>
       <div className="card auth-card">
         <h2>Admin-Bereich</h2>
         <p>Bitte PIN eingeben, um fortzufahren.</p>
@@ -41,6 +45,7 @@ const RequireAdmin = ({ children }: PropsWithChildren) => {
               value={pin}
               onChange={(event) => setPin(event.target.value)}
               placeholder="z. B. 1234"
+              autoComplete="new-password"
             />
           </label>
           {error && <p className="form-error">{error}</p>}

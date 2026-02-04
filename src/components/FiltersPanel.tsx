@@ -1,8 +1,10 @@
+import { useEffect } from 'react';
 import { ComplaintFilters, ComplaintCategory, ComplaintPriority, ComplaintStatus } from '../types/complaint';
+import { SettingsData, getSectionValues } from '../storage/settingsRepository';
 
 interface FiltersPanelProps {
   filters: ComplaintFilters;
-  categories: string[];
+  settings: SettingsData;
   onChange: (filters: ComplaintFilters) => void;
 }
 
@@ -23,7 +25,23 @@ const priorityOptions: Array<ComplaintPriority | 'Alle'> = [
   'Kritisch',
 ];
 
-const FiltersPanel = ({ filters, categories, onChange }: FiltersPanelProps) => {
+const FiltersPanel = ({ filters, settings, onChange }: FiltersPanelProps) => {
+  const locationOptions = getSectionValues(settings, 'locations');
+  const departmentOptions = getSectionValues(settings, 'departments');
+  const categoryOptions = getSectionValues(settings, 'categories');
+
+  useEffect(() => {
+    if (filters.location !== 'Alle' && !locationOptions.includes(filters.location)) {
+      onChange({ ...filters, location: 'Alle' });
+    }
+    if (filters.department !== 'Alle' && !departmentOptions.includes(filters.department)) {
+      onChange({ ...filters, department: 'Alle' });
+    }
+    if (filters.category !== 'Alle' && !categoryOptions.includes(filters.category)) {
+      onChange({ ...filters, category: 'Alle' });
+    }
+  }, [categoryOptions, departmentOptions, filters, locationOptions, onChange]);
+
   return (
     <div className="card filters">
       <div className="filters-grid">
@@ -58,7 +76,7 @@ const FiltersPanel = ({ filters, categories, onChange }: FiltersPanelProps) => {
             }
           >
             <option value="Alle">Alle</option>
-            {categories.map((category) => (
+            {categoryOptions.map((category) => (
               <option key={category} value={category}>
                 {category}
               </option>
@@ -82,21 +100,28 @@ const FiltersPanel = ({ filters, categories, onChange }: FiltersPanelProps) => {
         </label>
         <label>
           Standort
-          <input
-            type="text"
-            value={filters.location}
-            onChange={(event) => onChange({ ...filters, location: event.target.value })}
-            placeholder="z. B. Hauptstandort"
-          />
+          <select value={filters.location} onChange={(event) => onChange({ ...filters, location: event.target.value })}>
+            <option value="Alle">Alle</option>
+            {locationOptions.map((location) => (
+              <option key={location} value={location}>
+                {location}
+              </option>
+            ))}
+          </select>
         </label>
         <label>
           Abteilung
-          <input
-            type="text"
+          <select
             value={filters.department}
             onChange={(event) => onChange({ ...filters, department: event.target.value })}
-            placeholder="z. B. Notaufnahme"
-          />
+          >
+            <option value="Alle">Alle</option>
+            {departmentOptions.map((department) => (
+              <option key={department} value={department}>
+                {department}
+              </option>
+            ))}
+          </select>
         </label>
         <label>
           Zeitraum von
@@ -118,17 +143,17 @@ const FiltersPanel = ({ filters, categories, onChange }: FiltersPanelProps) => {
       <button
         className="button ghost"
         type="button"
-        onClick={() =>
-          onChange({
-            query: '',
-            status: 'Alle',
-            category: 'Alle',
-            priority: 'Alle',
-            location: '',
-            department: '',
-            dateFrom: undefined,
-            dateTo: undefined,
-          })
+          onClick={() =>
+            onChange({
+              query: '',
+              status: 'Alle',
+              category: 'Alle',
+              priority: 'Alle',
+              location: 'Alle',
+              department: 'Alle',
+              dateFrom: undefined,
+              dateTo: undefined,
+            })
         }
       >
         Filter zurücksetzen
