@@ -356,10 +356,7 @@ const NewComplaintPage = ({ mode }: NewComplaintPageProps) => {
               </label>
               <label>
                 Verantwortliche Person (optional)
-                <input
-                  value={form.owner}
-                  onChange={(event) => setForm((prev) => ({ ...prev, owner: event.target.value }))}
-                />
+                <input value={form.owner} onChange={(event) => setForm((prev) => ({ ...prev, owner: event.target.value }))} />
               </label>
               <label>
                 Frist (optional)
