@@ -4,7 +4,7 @@ import { attachmentRepository } from '../storage/attachmentRepository';
 import { loadSettings, saveSettings } from '../storage/settingsRepository';
 import { createSampleComplaints } from '../utils/sampleData';
 import { Complaint } from '../types/complaint';
-import { getAdminPin, setAdminPin } from '../services/authService';
+import { setAdminPin } from '../services/authService';
 import { useBranding } from '../context/BrandingContext';
 import { defaultBranding } from '../storage/brandingRepository';
 import { isValidHexColor, isValidSvgString } from '../utils/branding';
@@ -14,7 +14,7 @@ const SettingsPage = () => {
   const [settings, setSettings] = useState(loadSettings());
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
-  const [pin, setPin] = useState(getAdminPin());
+  const [pin, setPin] = useState('');
   const { branding, saveBranding, resetBranding } = useBranding();
   const [brandingDraft, setBrandingDraft] = useState(branding);
   const [brandingMessage, setBrandingMessage] = useState('');
@@ -92,7 +92,12 @@ const SettingsPage = () => {
   };
 
   const handlePinSave = () => {
+    if (!pin.trim()) {
+      setMessage('Bitte eine neue Admin-PIN eingeben.');
+      return;
+    }
     setAdminPin(pin);
+    setPin('');
     setMessage('Admin-PIN gespeichert.');
   };
 
@@ -227,6 +232,7 @@ const SettingsPage = () => {
             onChange={(event) => setPin(event.target.value)}
             aria-label="Admin-PIN"
           />
+          <span className="muted">Aktuelle PIN wird nicht angezeigt.</span>
           <button className="button ghost" type="button" onClick={handlePinSave}>
             PIN speichern
           </button>

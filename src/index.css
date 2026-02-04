@@ -611,13 +611,61 @@ tr {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 72px;
+  min-height: 160px;
+  background: rgba(15, 23, 42, 0.04);
 }
 
-.branding-preview-box svg {
-  height: 36px;
+.branding-preview-box svg,
+.branding-preview-box img {
+  max-height: 140px;
+  max-width: 100%;
+  height: auto;
   width: auto;
-  max-width: 160px;
+}
+
+.static-field {
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  padding: 10px 12px;
+  background: var(--surface);
+}
+
+.start-shell {
+  min-height: 100vh;
+  padding: 48px 24px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.start-header {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 32px;
+}
+
+.start-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.start-card {
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.start-card h3 {
+  margin-top: 0;
+}
+
+.start-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
+}
+
+.start-admin {
+  margin-top: 24px;
 }
 
 @media (max-width: 960px) {

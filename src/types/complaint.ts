@@ -10,6 +10,7 @@ export type ComplaintCategory =
   | 'Sonstiges';
 export type ComplaintPriority = 'Niedrig' | 'Mittel' | 'Hoch' | 'Kritisch';
 export type ComplaintChannel = 'Telefon' | 'E-Mail' | 'Brief' | 'Persönlich' | 'Online';
+export type ComplaintOrigin = 'report' | 'admin';
 export type ComplaintStatus =
   | 'Neu'
   | 'In Prüfung'
@@ -47,6 +48,7 @@ export interface Complaint {
   category: ComplaintCategory;
   priority: ComplaintPriority;
   channel: ComplaintChannel;
+  origin?: ComplaintOrigin;
   description: string;
   involvedPeople?: string;
   consent: boolean;
