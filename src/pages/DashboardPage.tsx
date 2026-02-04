@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Bar,
   BarChart,
@@ -18,7 +18,7 @@ import { loadSettings } from '../storage/settingsRepository';
 import { Complaint, ComplaintFilters } from '../types/complaint';
 import { applyFilters } from '../utils/filters';
 import { countBy, groupByMonth, topDepartments } from '../utils/stats';
-import { exportDashboardPdf } from '../utils/pdf';
+import { exportDashboardWithListPdf } from '../utils/pdf';
 
 const initialFilters: ComplaintFilters = {
   query: '',
@@ -33,6 +33,11 @@ const DashboardPage = () => {
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [filters, setFilters] = useState<ComplaintFilters>(initialFilters);
   const settings = useMemo(() => loadSettings(), []);
+  const [exporting, setExporting] = useState(false);
+  const monthlyChartRef = useRef<HTMLDivElement | null>(null);
+  const categoryChartRef = useRef<HTMLDivElement | null>(null);
+  const statusChartRef = useRef<HTMLDivElement | null>(null);
+  const departmentChartRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     complaintRepository.list().then(setComplaints);
@@ -69,6 +74,58 @@ const DashboardPage = () => {
   }, [filtered]);
 
   const topDepartmentsData = useMemo(() => topDepartments(filtered), [filtered]);
+  const channelData = useMemo(() => {
+    const counts = countBy(filtered, 'channel');
+    return Object.entries(counts).map(([name, total]) => ({ name, total }));
+  }, [filtered]);
+
+  const reporterTypeData = useMemo(() => {
+    const counts = filtered.reduce<Record<string, number>>((acc, complaint) => {
+      const label =
+        complaint.origin === 'admin'
+          ? 'Verwaltung'
+          : complaint.reporterType === 'Mitarbeitende'
+            ? 'Mitarbeit'
+            : complaint.reporterType === 'Sonstige'
+              ? 'Sonstige'
+              : 'Partien';
+      acc[label] = (acc[label] || 0) + 1;
+      return acc;
+    }, {});
+    return Object.entries(counts).map(([name, total]) => ({ name, total }));
+  }, [filtered]);
+
+  const topCategories = useMemo(() => {
+    const counts = countBy(filtered, 'category');
+    return Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([name, total]) => ({ name, total }));
+  }, [filtered]);
+
+  const locationData = useMemo(() => {
+    const counts = countBy(filtered, 'location');
+    return Object.entries(counts).map(([name, total]) => ({ name, total }));
+  }, [filtered]);
+
+  const processingStats = useMemo(() => {
+    const durations = filtered
+      .filter((item) => item.status === 'Gelöst' || item.status === 'Abgelehnt')
+      .map((item) => {
+        if (!item.dueDate) return null;
+        const created = new Date(item.createdAt).getTime();
+        const due = new Date(item.dueDate).getTime();
+        const diffDays = Math.round((due - created) / (1000 * 60 * 60 * 24));
+        return Number.isFinite(diffDays) && diffDays > 0 ? diffDays : null;
+      })
+      .filter((value): value is number => value !== null);
+    if (!durations.length) return { average: 'Nicht verfügbar', median: 'Nicht verfügbar' };
+    const avg = Math.round(durations.reduce((sum, item) => sum + item, 0) / durations.length);
+    const sorted = [...durations].sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    const median = sorted.length % 2 ? sorted[mid] : Math.round((sorted[mid - 1] + sorted[mid]) / 2);
+    return { average: `${avg} Tage`, median: `${median} Tage` };
+  }, [filtered]);
 
   const activeFilters = useMemo(() => {
     const filterLabels: string[] = [];
@@ -83,29 +140,99 @@ const DashboardPage = () => {
     return filterLabels;
   }, [filters]);
 
-  const handlePdfExport = () => {
-    exportDashboardPdf({
+  const getChartImage = async (ref: React.RefObject<HTMLDivElement>) => {
+    const container = ref.current;
+    if (!container) return undefined;
+    const svg = container.querySelector('svg');
+    if (!svg) return undefined;
+    const serializer = new XMLSerializer();
+    const svgMarkup = serializer.serializeToString(svg);
+    const encoded = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgMarkup)}`;
+    const image = new Image();
+    image.src = encoded;
+    await image.decode();
+    const bounds = svg.getBoundingClientRect();
+    const width = Math.max(bounds.width, 320);
+    const height = Math.max(bounds.height, 220);
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(width);
+    canvas.height = Math.round(height);
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+    }
+    return canvas.toDataURL('image/png');
+  };
+
+  const handlePdfExport = async () => {
+    setExporting(true);
+    const chartImages = await Promise.all([
+      getChartImage(monthlyChartRef),
+      getChartImage(categoryChartRef),
+      getChartImage(statusChartRef),
+      getChartImage(departmentChartRef),
+    ]);
+
+    exportDashboardWithListPdf({
       title: 'KlinikBeschwerde – Dashboard',
       filters: activeFilters,
-      kpis: kpis.map((item) => ({ label: item.label, value: Number(item.value) })),
-      tables: [
+      kpis: [
+        ...kpis.map((item) => ({ label: item.label, value: Number(item.value) })),
+        { label: 'Ø Bearbeitungszeit', value: processingStats.average },
+      ],
+      dashboardCharts: [
+        { title: 'Beschwerden pro Monat', dataUrl: chartImages[0] },
+        { title: 'Kategorien-Verteilung', dataUrl: chartImages[1] },
+        { title: 'Status-Verteilung', dataUrl: chartImages[2] },
+        { title: 'Top-Abteilungen', dataUrl: chartImages[3] },
+      ],
+      detailTables: [
+        {
+          title: 'Aufteilung nach Kanal',
+          head: ['Kanal', 'Anzahl'],
+          body: channelData.map((item) => [item.name, item.total]),
+        },
+        {
+          title: 'Aufteilung nach Melde-Typ',
+          head: ['Typ', 'Anzahl'],
+          body: reporterTypeData.map((item) => [item.name, item.total]),
+        },
+        {
+          title: 'Status-Verteilung',
+          head: ['Status', 'Anzahl'],
+          body: statusData.map((item) => [item.name, item.total]),
+        },
+        {
+          title: 'Top Kategorien',
+          head: ['Kategorie', 'Anzahl'],
+          body: topCategories.map((item) => [item.name, item.total]),
+        },
         {
           title: 'Beschwerden pro Monat',
           head: ['Monat', 'Anzahl'],
           body: monthly.map((item) => [item.name, item.total]),
         },
         {
-          title: 'Kategorien',
-          head: ['Kategorie', 'Anzahl'],
-          body: categoryData.map((item) => [item.name, item.total]),
+          title: 'Standorte',
+          head: ['Standort', 'Anzahl'],
+          body: locationData.map((item) => [item.name, item.total]),
         },
         {
           title: 'Top-Abteilungen',
           head: ['Abteilung', 'Anzahl'],
           body: topDepartmentsData.map((item) => [item.name, item.total]),
         },
+        {
+          title: 'Bearbeitungszeit',
+          head: ['Durchschnitt', 'Median'],
+          body: [[processingStats.average, processingStats.median]],
+        },
       ],
+      complaints: filtered,
     });
+    setExporting(false);
   };
 
   return (
@@ -116,8 +243,8 @@ const DashboardPage = () => {
           <p>Überblick über Beschwerden, Trends und Schwerpunkte.</p>
         </div>
         <div className="header-actions">
-          <button className="button primary" onClick={handlePdfExport}>
-            Dashboard als PDF
+          <button className="button primary" onClick={handlePdfExport} disabled={exporting}>
+            {exporting ? 'PDF wird erstellt...' : 'Dashboard als PDF'}
           </button>
         </div>
       </header>
@@ -131,7 +258,7 @@ const DashboardPage = () => {
       </div>
 
       <div className="grid-2">
-        <div className="card chart-card">
+        <div className="card chart-card" ref={monthlyChartRef}>
           <h3>Beschwerden pro Monat</h3>
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={monthly}>
@@ -143,7 +270,7 @@ const DashboardPage = () => {
             </BarChart>
           </ResponsiveContainer>
         </div>
-        <div className="card chart-card">
+        <div className="card chart-card" ref={categoryChartRef}>
           <h3>Kategorien-Verteilung</h3>
           <ResponsiveContainer width="100%" height={260}>
             <PieChart>
@@ -156,7 +283,7 @@ const DashboardPage = () => {
       </div>
 
       <div className="grid-2">
-        <div className="card chart-card">
+        <div className="card chart-card" ref={statusChartRef}>
           <h3>Status-Verteilung</h3>
           <ResponsiveContainer width="100%" height={260}>
             <PieChart>
@@ -166,7 +293,7 @@ const DashboardPage = () => {
             </PieChart>
           </ResponsiveContainer>
         </div>
-        <div className="card chart-card">
+        <div className="card chart-card" ref={departmentChartRef}>
           <h3>Top-Abteilungen</h3>
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={topDepartmentsData} layout="vertical">
