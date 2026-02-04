@@ -49,7 +49,8 @@ const SettingsPage = () => {
   };
 
   const addSection = () => {
-    const id = typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `section-${Date.now()}`;
+    const id =
+      typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `section-${Date.now()}`;
     const nextSections = [...settings.dropdownSections, { id, label: 'Neuer Bereich', values: [] as string[] }];
     const next = { ...settings, dropdownSections: nextSections };
     setSettings(next);
@@ -348,9 +349,7 @@ const SettingsPage = () => {
             <input
               type="text"
               value={brandingDraft.organizationName}
-              onChange={(event) =>
-                setBrandingDraft((current) => ({ ...current, organizationName: event.target.value }))
-              }
+              onChange={(event) => setBrandingDraft((current) => ({ ...current, organizationName: event.target.value }))}
               placeholder="z. B. Klinikum Beispielstadt"
             />
           </label>
@@ -391,7 +390,9 @@ const SettingsPage = () => {
             <div className="color-row">
               <input
                 type="color"
-                value={isValidHexColor(brandingDraft.accentColor) ? brandingDraft.accentColor : defaultBranding.accentColor}
+                value={
+                  isValidHexColor(brandingDraft.accentColor) ? brandingDraft.accentColor : defaultBranding.accentColor
+                }
                 onChange={(event) => setBrandingDraft((current) => ({ ...current, accentColor: event.target.value }))}
                 aria-label="Accent Color"
               />

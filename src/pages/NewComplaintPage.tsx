@@ -2,8 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import TagInput from '../components/TagInput';
-import { complaintRepository } from '../storage/indexedDbComplaintRepository';
 import { attachmentRepository } from '../storage/attachmentRepository';
+import { complaintRepository } from '../storage/indexedDbComplaintRepository';
 import { getSectionValues, loadSettings } from '../storage/settingsRepository';
 import { generateCaseNumber } from '../services/caseNumberService';
 import { Complaint, ComplaintAttachment } from '../types/complaint';
@@ -53,7 +53,7 @@ const NewComplaintPage = ({ mode }: NewComplaintPageProps) => {
     contact: '',
     location: locations[0] ?? '',
     department: departments[0] ?? '',
-    category: (categories[0] as Complaint['category']) ?? 'Pflege',
+    category: (categories[0] || 'Pflege') as Complaint['category'],
     priority: 'Mittel',
     channel: isAdmin ? 'Telefon' : 'Online',
     origin: isAdmin ? 'admin' : 'report',
@@ -97,11 +97,13 @@ const NewComplaintPage = ({ mode }: NewComplaintPageProps) => {
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (!event.target.files) return;
+
     const nextDrafts = Array.from(event.target.files).map((file) => ({
       id: uuidv4(),
       file,
       previewUrl: URL.createObjectURL(file),
     }));
+
     setDrafts((prev) => [...prev, ...nextDrafts]);
     event.target.value = '';
   };
@@ -116,6 +118,7 @@ const NewComplaintPage = ({ mode }: NewComplaintPageProps) => {
 
   const persistAttachments = async (complaintId: string) => {
     const storedIds: string[] = [];
+
     for (const draft of drafts) {
       const attachment: ComplaintAttachment = {
         id: draft.id,
@@ -126,9 +129,11 @@ const NewComplaintPage = ({ mode }: NewComplaintPageProps) => {
         createdAt: new Date().toISOString(),
         blob: draft.file,
       };
+
       await attachmentRepository.create(attachment);
       storedIds.push(draft.id);
     }
+
     return storedIds;
   };
 
@@ -139,6 +144,7 @@ const NewComplaintPage = ({ mode }: NewComplaintPageProps) => {
       setError('Bitte beschreiben Sie die Beschwerde.');
       return;
     }
+
     if (!form.consent) {
       setError('Bitte bestätigen Sie die Datenschutz-Einwilligung.');
       return;
@@ -396,7 +402,10 @@ const NewComplaintPage = ({ mode }: NewComplaintPageProps) => {
 
               <label>
                 Verantwortliche Person (optional)
-                <input value={form.owner} onChange={(event) => setForm((prev) => ({ ...prev, owner: event.target.value }))} />
+                <input
+                  value={form.owner}
+                  onChange={(event) => setForm((prev) => ({ ...prev, owner: event.target.value }))}
+                />
               </label>
 
               <label>

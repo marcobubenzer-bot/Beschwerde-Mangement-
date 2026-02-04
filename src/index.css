@@ -612,6 +612,44 @@ tr {
   align-items: center;
 }
 
+/* kept from conflict branch: */
+.value-list {
+  display: grid;
+  gap: 8px;
+}
+
+.value-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.value-row input {
+  flex: 1;
+}
+
+.icon-button {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 10px;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.icon-button svg {
+  width: 18px;
+  height: 18px;
+}
+
+.icon-button:hover {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
 .hidden {
   display: none;
 }
