@@ -1,4 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
+import { EVKLN_PRIVACY_URL } from '../config/externalLinks';
 
 const StartPage = () => {
   const navigate = useNavigate();
@@ -23,7 +24,7 @@ const StartPage = () => {
         </Link>
         <div className="start-header-actions">
           <span className="start-system">Beschwerde-Management</span>
-          <a className="start-link" href="#">
+          <a className="start-link" href={EVKLN_PRIVACY_URL} target="_blank" rel="noopener noreferrer">
             Datenschutz
           </a>
         </div>
