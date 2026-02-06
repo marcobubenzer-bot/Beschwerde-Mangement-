@@ -1258,6 +1258,18 @@ textarea:focus-visible {
   margin-top: 0;
 }
 
+.partner-survey-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  padding: 24px;
+  border-radius: 24px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  margin-top: 32px;
+}
+
 .complaint-section {
   display: flex;
   justify-content: space-between;
@@ -1267,6 +1279,36 @@ textarea:focus-visible {
   border-radius: 24px;
   border: 1px solid var(--border);
   background: var(--surface);
+}
+
+.google-review-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  padding: 24px;
+  border-radius: 24px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  margin-top: 24px;
+}
+
+.google-review-button {
+  background: #4285f4;
+  color: #fff;
+  border-radius: 999px;
+  padding: 12px 22px;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: 0 10px 24px rgba(66, 133, 244, 0.3);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.google-review-button:hover,
+.google-review-button:focus-visible {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 30px rgba(66, 133, 244, 0.4);
 }
 
 .modal-overlay {
@@ -1320,6 +1362,16 @@ textarea:focus-visible {
   }
 
   .complaint-section {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .partner-survey-section {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .google-review-section {
     flex-direction: column;
     align-items: flex-start;
   }
