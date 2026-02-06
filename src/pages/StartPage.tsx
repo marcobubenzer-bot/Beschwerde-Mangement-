@@ -1,4 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
+import Logo from '../components/Logo';
 import { EVKLN_GOOGLE_REVIEW_URL, EVKLN_PRIVACY_URL } from '../config/externalLinks';
 
 const StartPage = () => {
@@ -8,11 +9,7 @@ const StartPage = () => {
     <main className="start-page">
       <header className="start-header">
         <Link to="/" className="start-brand" aria-label="Zur Startseite">
-          <img
-            className="start-logo-image"
-            src="/brand/evkln-logo.svg"
-            alt="EVKLN – Evangelisches Klinikum Niederrhein"
-          />
+          <Logo className="start-logo-image" />
           <div className="start-brand-text">
             <span className="start-brand-title">EVKLN</span>
             <span className="start-brand-subtitle">Evangelisches Klinikum Niederrhein</span>
@@ -30,6 +27,7 @@ const StartPage = () => {
       <section className="start-hero">
         <div className="hero-content">
           <p className="eyebrow">Feedback nach Behandlung</p>
+          <Logo className="start-hero-logo" />
           <h1>Wie zufrieden waren Sie mit Ihrer Behandlung?</h1>
           <p className="hero-subtitle">
             Bitte bewerten Sie Ihre Erfahrung detailliert – das dauert nur 2–3 Minuten. Ihre Rückmeldung hilft uns,
