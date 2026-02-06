@@ -893,9 +893,41 @@ tr {
   color: inherit;
 }
 
+.logo {
+  display: inline-block;
+}
+
+.logo svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
 .start-logo-image {
   height: 36px;
   width: auto;
+  max-width: 140px;
+  display: block;
+}
+
+.start-logo-image svg {
+  height: 100%;
+  width: auto;
+  max-width: 100%;
+  display: block;
+}
+
+.start-hero-logo {
+  width: clamp(120px, 25vw, 200px);
+  height: auto;
+  margin: 8px 0 12px;
+  display: block;
+}
+
+.start-hero-logo svg {
+  width: 100%;
+  height: auto;
+  display: block;
 }
 
 .start-brand-text {

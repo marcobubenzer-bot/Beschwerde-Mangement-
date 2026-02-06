@@ -1,6 +1,5 @@
-import { useMemo } from 'react';
 import { useBranding } from '../context/BrandingContext';
-import { isValidSvgString } from '../utils/branding';
+import Logo from './Logo';
 
 type BrandingMarkProps = {
   subtitle?: string;
@@ -9,20 +8,11 @@ type BrandingMarkProps = {
 const BrandingMark = ({ subtitle }: BrandingMarkProps) => {
   const { branding } = useBranding();
   const showBranding = branding.showBranding;
-  const logoIsValid = useMemo(
-    () => showBranding && Boolean(branding.logoSvg) && isValidSvgString(branding.logoSvg),
-    [branding.logoSvg, showBranding]
-  );
-  const fallbackLogoSrc = '/brand/evkln-logo.svg';
 
   return (
     <div className="brand">
       <div className="brand-logo">
-        {showBranding && logoIsValid ? (
-          <div className="brand-logo-svg" aria-hidden="true" dangerouslySetInnerHTML={{ __html: branding.logoSvg }} />
-        ) : (
-          <img src={fallbackLogoSrc} alt="EVKLN – Evangelisches Klinikum Niederrhein" />
-        )}
+        <Logo />
       </div>
       <div className="brand-text">
         {showBranding && branding.organizationName ? (
