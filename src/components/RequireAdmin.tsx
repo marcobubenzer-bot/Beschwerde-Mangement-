@@ -53,8 +53,8 @@ const RequireAdmin = ({ children }: PropsWithChildren) => {
             <button type="submit" className="button primary">
               Freischalten
             </button>
-            <button type="button" className="button ghost" onClick={() => navigate('/report')}>
-              Zurück zum Formular
+            <button type="button" className="button ghost" onClick={() => navigate('/')}>
+              Zurück zur Startseite
             </button>
           </div>
         </form>

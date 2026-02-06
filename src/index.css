@@ -1288,6 +1288,12 @@ textarea:focus-visible {
   background: var(--surface);
 }
 
+.start-footer {
+  margin-top: 48px;
+  font-size: 0.95rem;
+  color: #6b7280;
+}
+
 .google-review-section {
   display: flex;
   justify-content: space-between;
@@ -1348,6 +1354,104 @@ textarea:focus-visible {
   animation: fadeInUp 0.8s ease both;
 }
 
+.survey-page {
+  padding: 48px 10vw 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.survey-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+.survey-progress {
+  background: #f0f4ff;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-weight: 600;
+  color: #4b5cf0;
+}
+
+.survey-form {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.survey-question-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.survey-question {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #edf0f7;
+}
+
+.radio-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.checkbox-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.survey-answer-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.survey-answer {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px dashed #e3e7f5;
+}
+
+.thank-you-card {
+  max-width: 640px;
+  margin: 0 auto;
+  text-align: center;
+  gap: 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.honeypot {
+  position: absolute;
+  left: -9999px;
+  opacity: 0;
+  height: 0;
+  width: 0;
+}
+
+.alert.warning {
+  background: #fff5e5;
+  border: 1px solid #f6c48f;
+  padding: 12px 16px;
+  border-radius: 12px;
+  color: #9a5b00;
+}
+
+.small-text {
+  font-size: 0.9rem;
+  color: #6b7280;
+}
+
 @keyframes fadeInUp {
   from {
     opacity: 0;
@@ -1362,6 +1466,15 @@ textarea:focus-visible {
 @media (max-width: 720px) {
   .start-page {
     padding: 24px 5vw 64px;
+  }
+
+  .survey-page {
+    padding: 24px 5vw 64px;
+  }
+
+  .survey-header {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .start-trust {
