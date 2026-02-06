@@ -917,19 +917,6 @@ tr {
   display: block;
 }
 
-.start-hero-logo {
-  width: clamp(120px, 25vw, 200px);
-  height: auto;
-  margin: 8px 0 12px;
-  display: block;
-}
-
-.start-hero-logo svg {
-  width: 100%;
-  height: auto;
-  display: block;
-}
-
 .start-brand-text {
   display: flex;
   flex-direction: column;

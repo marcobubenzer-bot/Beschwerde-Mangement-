@@ -27,7 +27,6 @@ const StartPage = () => {
       <section className="start-hero">
         <div className="hero-content">
           <p className="eyebrow">Feedback nach Behandlung</p>
-          <Logo className="start-hero-logo" />
           <h1>Wie zufrieden waren Sie mit Ihrer Behandlung?</h1>
           <p className="hero-subtitle">
             Bitte bewerten Sie Ihre Erfahrung detailliert – das dauert nur 2–3 Minuten. Ihre Rückmeldung hilft uns,
