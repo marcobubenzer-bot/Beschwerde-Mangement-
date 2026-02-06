@@ -1,32 +1,48 @@
 :root {
   font-family: 'Inter', system-ui, sans-serif;
-  color: #1f2a44;
-  background-color: #f7f9fc;
-  --bg: #f7f9fc;
+  color: #0f172a;
+  background-color: #ffffff;
+  --color-primary: #0069b2;
+  --color-primary-hover: #00548f;
+  --color-accent: #dd0b30;
+  --color-accent-hover: #b00926;
+  --color-bg: #ffffff;
+  --color-text: #0f172a;
+  --color-border: #e5e7eb;
+  --color-muted: #64748b;
+  --bg: var(--color-bg);
   --surface: #ffffff;
-  --text: #1f2a44;
-  --muted: #6b7280;
-  --primary: #6a6af4;
-  --primary-soft: #eef1ff;
-  --accent: #1f2a44;
-  --border: #e3e7ef;
-  --shadow: 0 8px 24px rgba(31, 42, 68, 0.06);
-  --danger: #b42318;
-  --danger-soft: #ffe4e6;
+  --text: var(--color-text);
+  --muted: var(--color-muted);
+  --primary: var(--color-primary);
+  --primary-hover: var(--color-primary-hover);
+  --primary-soft: rgba(0, 105, 178, 0.12);
+  --primary-shadow: rgba(0, 105, 178, 0.22);
+  --accent: var(--color-text);
+  --border: var(--color-border);
+  --shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+  --danger: var(--color-accent);
+  --danger-soft: rgba(221, 11, 48, 0.12);
   --warning: #b54708;
   --success: #027a48;
 }
 
 .theme-dark {
   color-scheme: dark;
-  --bg: #0b1120;
-  --surface: #1b2536;
-  --text: #f8fafc;
-  --muted: #d1d5db;
-  --primary: #9aa4ff;
-  --primary-soft: rgba(154, 164, 255, 0.22);
-  --accent: #f8fafc;
-  --border: #334155;
+  --color-bg: #0b1120;
+  --color-text: #f8fafc;
+  --color-border: #334155;
+  --color-muted: #d1d5db;
+  --bg: var(--color-bg);
+  --surface: #111827;
+  --text: var(--color-text);
+  --muted: var(--color-muted);
+  --primary: #4fa3e3;
+  --primary-hover: #3a8dc7;
+  --primary-soft: rgba(79, 163, 227, 0.22);
+  --primary-shadow: rgba(79, 163, 227, 0.35);
+  --accent: var(--color-text);
+  --border: var(--color-border);
   --shadow: 0 8px 24px rgba(15, 23, 42, 0.55);
   --danger: #fca5a5;
   --danger-soft: rgba(252, 165, 165, 0.2);
@@ -45,8 +61,12 @@ body {
 }
 
 a {
-  color: inherit;
+  color: var(--primary);
   text-decoration: none;
+}
+
+a:hover {
+  color: var(--primary-hover);
 }
 
 .app-shell {
@@ -93,17 +113,30 @@ a {
   align-items: center;
 }
 
-.brand-logo {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  background: var(--primary-soft);
-  display: grid;
-  place-items: center;
-  overflow: hidden;
+.brand-link {
+  color: inherit;
+  text-decoration: none;
 }
 
-.brand-logo svg {
+.brand-link:hover {
+  color: inherit;
+}
+.brand-logo {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 6px;
+}
+
+.brand-logo img,
+.brand-logo svg,
+.brand-logo-svg svg {
   height: 32px;
   width: auto;
   max-width: 120px;
@@ -119,7 +152,7 @@ a {
 .brand-title {
   margin: 0;
   font-size: 20px;
-  color: var(--accent);
+  color: var(--text);
 }
 
 .brand-org {
@@ -148,6 +181,11 @@ a {
   color: var(--text);
   font-weight: 500;
   background: transparent;
+}
+
+.nav a:hover {
+  background: var(--primary-soft);
+  color: var(--primary);
 }
 
 .nav a.active {
@@ -326,6 +364,7 @@ textarea {
   font-weight: 600;
   cursor: pointer;
   font-size: 14px;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
 }
 
 .button.primary {
@@ -333,9 +372,18 @@ textarea {
   color: white;
 }
 
+.button.primary:hover {
+  background: var(--primary-hover);
+}
+
 .button.ghost {
-  background: var(--primary-soft);
+  background: transparent;
   color: var(--primary);
+  border: 1px solid var(--primary);
+}
+
+.button.ghost:hover {
+  background: var(--primary-soft);
 }
 
 .button.danger {
@@ -810,7 +858,7 @@ tr {
   display: flex;
   flex-direction: column;
   gap: 64px;
-  background: radial-gradient(circle at top right, rgba(106, 106, 244, 0.08), transparent 55%), var(--bg);
+  background: radial-gradient(circle at top right, rgba(0, 105, 178, 0.08), transparent 55%), var(--bg);
 }
 
 .start-header {
@@ -818,27 +866,79 @@ tr {
   justify-content: space-between;
   align-items: center;
   gap: 24px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border);
 }
 
-.start-logo {
-  font-size: 20px;
+@media (max-width: 720px) {
+  .start-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .start-header-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+.start-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: inherit;
+}
+
+.start-brand:hover {
+  color: inherit;
+}
+
+.start-logo-image {
+  height: 36px;
+  width: auto;
+}
+
+.start-brand-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.start-brand-title {
+  font-size: 16px;
   font-weight: 700;
-  letter-spacing: -0.01em;
-  color: var(--accent);
+  color: var(--text);
+}
+
+.start-brand-subtitle {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.start-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.start-system {
+  font-weight: 600;
+  color: var(--text);
+  font-size: 14px;
 }
 
 .start-link {
-  color: var(--muted);
+  color: var(--primary);
   font-weight: 600;
 }
 
 .start-link:focus-visible,
 .start-link:hover {
-  color: var(--primary);
+  color: var(--primary-hover);
 }
 
 .start-trust {
-  margin: -48px 0 0;
+  margin: -24px 0 0;
   color: var(--muted);
   font-size: 14px;
 }
@@ -885,20 +985,20 @@ tr {
   padding: 12px 24px;
   font-size: 15px;
   font-weight: 600;
-  box-shadow: 0 12px 24px rgba(106, 106, 244, 0.22);
+  box-shadow: 0 12px 24px var(--primary-shadow);
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .primary-button:hover {
   transform: translateY(-2px);
-  box-shadow: 0 16px 30px rgba(106, 106, 244, 0.3);
+  box-shadow: 0 16px 30px rgba(0, 105, 178, 0.3);
 }
 
 .ghost-button {
   background: transparent;
-  color: var(--text);
-  border: 1px solid var(--border);
+  color: var(--primary);
+  border: 1px solid var(--primary);
   border-radius: 999px;
   padding: 12px 20px;
   font-size: 14px;
@@ -909,7 +1009,7 @@ tr {
 
 .ghost-button:hover {
   transform: translateY(-2px);
-  border-color: var(--primary);
+  border-color: var(--primary-hover);
 }
 
 .trust-badges {

@@ -9,7 +9,7 @@ export interface BrandingData {
 export const defaultBranding: BrandingData = {
   organizationName: '',
   logoSvg: '',
-  primaryColor: '#6a6af4',
-  accentColor: '#1f2a44',
+  primaryColor: '#0069B2',
+  accentColor: '#DD0B30',
   showBranding: false,
 };

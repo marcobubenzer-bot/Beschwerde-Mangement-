@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 const StartPage = () => {
   const navigate = useNavigate();
@@ -10,12 +10,23 @@ const StartPage = () => {
   return (
     <main className="start-page">
       <header className="start-header">
-        <div className="start-logo" aria-label="Praxisname">
-          PraxisFeedback
+        <Link to="/" className="start-brand" aria-label="Zur Startseite">
+          <img
+            className="start-logo-image"
+            src="/brand/evkln-logo.svg"
+            alt="EVKLN – Evangelisches Klinikum Niederrhein"
+          />
+          <div className="start-brand-text">
+            <span className="start-brand-title">EVKLN</span>
+            <span className="start-brand-subtitle">Evangelisches Klinikum Niederrhein</span>
+          </div>
+        </Link>
+        <div className="start-header-actions">
+          <span className="start-system">Beschwerde-Management</span>
+          <a className="start-link" href="#">
+            Datenschutz
+          </a>
         </div>
-        <a className="start-link" href="#">
-          Datenschutz
-        </a>
       </header>
       <p className="start-trust">Ihre Rückmeldung wird vertraulich behandelt.</p>
 

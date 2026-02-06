@@ -6,7 +6,9 @@ const ReportLayout = () => {
   return (
     <div className="report-shell">
       <header className="report-header">
-        <BrandingMark subtitle="Beschwerde einreichen" />
+        <Link to="/" className="brand-link">
+          <BrandingMark subtitle="Beschwerde einreichen" />
+        </Link>
         <div className="header-actions">
           <Link to="/admin" className="button ghost">
             Admin-Bereich
