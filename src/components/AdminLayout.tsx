@@ -11,12 +11,12 @@ const AdminLayout = () => {
         </Link>
         <nav className="nav">
           <NavLink to="/admin/dashboard">Dashboard</NavLink>
-          <NavLink to="/admin/new">Neue Beschwerde</NavLink>
-          <NavLink to="/admin/complaints">Vorgänge</NavLink>
+          <NavLink to="/admin/responses">Einreichungen</NavLink>
+          <NavLink to="/admin/complaints">Beschwerden & Lob</NavLink>
           <NavLink to="/admin/settings">Einstellungen</NavLink>
         </nav>
         <div className="sidebar-footer">
-          <span>Offline bereit · IndexedDB</span>
+          <span>Offline bereit · LocalStorage</span>
         </div>
       </aside>
       <main className="content">

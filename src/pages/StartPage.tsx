@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import Logo from '../components/Logo';
-import { EVKLN_GOOGLE_REVIEW_URL, EVKLN_PRIVACY_URL } from '../config/externalLinks';
+import { EVKLN_PRIVACY_URL } from '../config/externalLinks';
 
 const StartPage = () => {
   const navigate = useNavigate();
@@ -11,12 +11,12 @@ const StartPage = () => {
         <Link to="/" className="start-brand" aria-label="Zur Startseite">
           <Logo className="start-logo-image" />
           <div className="start-brand-text">
-            <span className="start-brand-title">EVKLN</span>
-            <span className="start-brand-subtitle">Evangelisches Klinikum Niederrhein</span>
+          <span className="start-brand-title">Patientenbefragung</span>
+          <span className="start-brand-subtitle">Ihre Meinung zählt</span>
           </div>
         </Link>
         <div className="start-header-actions">
-          <span className="start-system">Beschwerde-Management</span>
+          <span className="start-system">Qualitätsmanagement</span>
           <a className="start-link" href={EVKLN_PRIVACY_URL} target="_blank" rel="noopener noreferrer">
             Datenschutz
           </a>
@@ -33,7 +33,7 @@ const StartPage = () => {
             unsere Qualität kontinuierlich zu verbessern.
           </p>
           <div className="hero-actions">
-            <button type="button" className="primary-button" onClick={() => navigate('/partnerbefragung')}>
+            <button type="button" className="primary-button" onClick={() => navigate('/survey')}>
               Umfrage starten
             </button>
           </div>
@@ -55,37 +55,22 @@ const StartPage = () => {
         </div>
       </section>
 
-      <section className="google-review-section" aria-labelledby="google-review-title">
-        <div>
-          <h2 id="google-review-title">Bewerten Sie uns auf Google</h2>
-          <p>
-            Ihr Feedback wird direkt bei Google veröffentlicht. Sie verlassen damit das Beschwerde-Management und
-            öffnen die Bewertung in einem neuen Tab.
-          </p>
-        </div>
-        <a
-          className="google-review-button"
-          href={EVKLN_GOOGLE_REVIEW_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="Bewerte uns bei Google (öffnet in neuem Tab)"
-        >
-          Bewerte uns bei Google
-        </a>
-      </section>
-
       <section className="complaint-section" aria-labelledby="complaint-title">
         <div>
-          <h2 id="complaint-title">Beschwerde melden</h2>
+          <h2 id="complaint-title">Datenschutz & Vertraulichkeit</h2>
           <p>
-            Wenn Sie ein akutes Anliegen haben, nutzen Sie bitte den Beschwerdekanal. Wir prüfen jeden Hinweis
-            zeitnah.
+            Ihre Angaben werden ausschließlich für die Qualitätsverbesserung genutzt. Es erfolgt keine Weitergabe an
+            Dritte. Bei Rückfragen können Sie sich jederzeit an unser Qualitätsmanagement wenden.
           </p>
         </div>
-        <button type="button" className="ghost-button" onClick={() => navigate('/report')}>
-          Zur Beschwerde
+        <button type="button" className="ghost-button" onClick={() => navigate('/admin')}>
+          Zum Admin-Bereich
         </button>
       </section>
+
+      <footer className="start-footer">
+        <p>DSGVO: Ihre Daten werden vertraulich behandelt und nur intern ausgewertet.</p>
+      </footer>
     </main>
   );
 };

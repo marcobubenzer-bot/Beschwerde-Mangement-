@@ -1,16 +1,14 @@
-# KlinikBeschwerde – MVP
+# Patientenbefragung – MVP
 
-Eine schlanke MVP-Web-App für das Beschwerdemanagement in Kliniken. Die Anwendung läuft komplett clientseitig, speichert Daten lokal (IndexedDB) und bietet PDF-Exporte für Dashboard, Vorgangsliste und einzelne Fallblätter.
+Eine schlanke MVP-Web-App für eine Patientenbefragung mit öffentlichem Formular und Admin-Dashboard. Die Anwendung läuft komplett clientseitig, speichert Daten lokal (LocalStorage) und bietet CSV/XLSX-Exporte.
 
 ## Features
-- Beschwerden erfassen mit klarer Formularstruktur (Report- und Admin-Bereich).
-- Automatische Vorgangsnummern (KB-YYYY-00001).
-- Vorgänge filtern, sortieren, Details ansehen und Status ändern.
-- Dashboard mit KPIs und Charts.
-- PDF-Export für Dashboard, Liste und Fallblatt (inkl. Anlagenübersicht).
-- Anhänge als Bilddateien (PNG/JPG/WebP) in IndexedDB.
-- Export/Import JSON als Backup sowie Beispieldaten-Generator.
-- Theme: Hell/Dunkel/System (persistiert).
+- Öffentliche Patientenbefragung mit 33 Fragen (Likert/Ja-Nein/Gesamtnote).
+- Kontaktwunsch optional mit Pflichtfeldern bei Aktivierung.
+- Admin-Dashboard mit KPIs, Filter und Chart für schwächste Fragen.
+- Admin-Listenansicht, Detailansicht und Beschwerden/Lob-Verwaltung.
+- CSV- und XLSX-Export für Antworten und Beschwerden.
+- Lokales Rate-Limit + Honeypot als Basisschutz.
 
 ## Setup
 ```bash
@@ -18,5 +16,13 @@ npm install
 npm run dev
 ```
 
-## Backend-Integration (später)
-Die Repository-Schicht liegt in `src/storage/`. Aktuell liefern `IndexedDbComplaintRepository` und `IndexedDbAttachmentRepository` die Daten. Für ein echtes Backend kann dort eine neue Implementierung (z. B. `ApiComplaintRepository`) erstellt werden, die dieselben Interfaces (`ComplaintRepository`, `AttachmentRepository`) erfüllt und REST-/S3-Aufrufe (GET/POST/PUT/DELETE) umsetzt. Die App muss dann nur die Instanzen in `src/storage/indexedDbComplaintRepository.ts` und `src/storage/attachmentRepository.ts` ersetzen.
+## Admin-Zugang
+- Standard-PIN: `1234` (im Admin-Bereich unter Einstellungen änderbar).
+- Die Admin-Session wird im SessionStorage gespeichert.
+
+## Datenhaltung
+- Antworten und Beschwerden werden im Browser (LocalStorage) gespeichert.
+- DSGVO-Löschfrist ist als TODO vorgesehen (empfohlen: Cron/Job im Backend).
+
+## Backend-Integration (optional)
+Die Repository-Schicht liegt in `src/storage/surveyRepository.ts`. Für ein echtes Backend kann dort eine neue Implementierung erstellt werden (z. B. REST-API mit PostgreSQL/Prisma), die dieselben Methoden anbietet.
