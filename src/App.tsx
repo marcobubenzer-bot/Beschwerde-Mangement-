@@ -10,6 +10,7 @@ import SettingsPage from './pages/SettingsPage';
 import ComplaintDetailPage from './pages/ComplaintDetailPage';
 import ConfirmationPage from './pages/ConfirmationPage';
 import StartPage from './pages/StartPage';
+import PartnerSurveyPage from './pages/PartnerSurveyPage';
 import { applyTheme, getStoredTheme } from './services/themeService';
 
 const App = () => {
@@ -20,6 +21,7 @@ const App = () => {
   return (
     <Routes>
       <Route path="/" element={<StartPage />} />
+      <Route path="/partnerbefragung" element={<PartnerSurveyPage />} />
       <Route path="/report" element={<ReportLayout />}>
         <Route index element={<NewComplaintPage mode="report" />} />
         <Route path="confirmation/:id" element={<ConfirmationPage />} />
