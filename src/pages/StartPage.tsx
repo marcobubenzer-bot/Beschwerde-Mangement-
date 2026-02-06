@@ -4,10 +4,6 @@ import { EVKLN_GOOGLE_REVIEW_URL, EVKLN_PRIVACY_URL } from '../config/externalLi
 const StartPage = () => {
   const navigate = useNavigate();
 
-  const scrollToSurvey = () => {
-    document.getElementById('survey-start')?.scrollIntoView({ behavior: 'smooth' });
-  };
-
   return (
     <main className="start-page">
       <header className="start-header">
@@ -40,11 +36,8 @@ const StartPage = () => {
             unsere Qualität kontinuierlich zu verbessern.
           </p>
           <div className="hero-actions">
-            <button type="button" className="primary-button" onClick={scrollToSurvey}>
+            <button type="button" className="primary-button" onClick={() => navigate('/partnerbefragung')}>
               Umfrage starten
-            </button>
-            <button type="button" className="ghost-button" onClick={scrollToSurvey}>
-              Später beantworten
             </button>
           </div>
           <div className="trust-badges" aria-label="Hinweise zur Umfrage">
@@ -63,19 +56,6 @@ const StartPage = () => {
             </ul>
           </div>
         </div>
-      </section>
-
-      <section className="partner-survey-section" id="survey-start" aria-labelledby="partner-survey-title">
-        <div>
-          <h2 id="partner-survey-title">Partnerbefragung</h2>
-          <p>
-            Sie werden zu einer separaten Partnerbefragung weitergeleitet. Das Formular wird in einer neuen Ansicht
-            geöffnet.
-          </p>
-        </div>
-        <button type="button" className="primary-button" onClick={() => navigate('/partnerbefragung')}>
-          Partnerbefragung
-        </button>
       </section>
 
       <section className="google-review-section" aria-labelledby="google-review-title">
