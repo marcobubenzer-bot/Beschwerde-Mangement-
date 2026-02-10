@@ -59,8 +59,19 @@ type ResponseState = {
   contactAddress: string;
 };
 
-const INTRO_TEXT = `Sehr geehrte Patientin,\n\nsehr geehrter Patient,\n\nwir nehmen Ihre Meinung ernst und prüfen, was wir verbessern können. Deshalb bitten wir Sie darum, den vorliegenden Fragebogen auszufüllen.\nBitte beantworten Sie die Fragen offen und spontan. Wir behandeln Ihre Angaben streng vertraulich. Nur wenn Sie es wünschen, können Sie uns einen Ansprechpartner für Rückfragen nennen.\nBitte nutzen Sie für den Fragebogen den beigefügten Umschlag und werfen Sie ihn in den Briefkasten auf der Station (Aufschrift: „Ihre Meinung ist uns wichtig“) oder geben Sie ihn beim Pflegepersonal ab.\nWir bedanken uns für Ihre Mitarbeit und wünschen Ihnen eine gute Besserung.`;
+type FormErrorMap = Record<string, string>;
 
+type ChoiceCardProps = {
+  checked: boolean;
+  label: string;
+  description?: string;
+  name: string;
+  value: string;
+  onChange: () => void;
+  disabled?: boolean;
+};
+
+const INTRO_TEXT = `Ihre Rückmeldung hilft uns, die Behandlung spürbar zu verbessern.\nDie Umfrage dauert nur wenige Minuten und ist streng vertraulich.`;
 const LOCAL_STORAGE_KEY = 'patientenbefragung_v1';
 const LAST_FORM_STEP = 12;
 
@@ -200,91 +211,140 @@ const initialState: ResponseState = {
   contactAddress: '',
 };
 
+const PrimaryButton = ({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
+  <button
+    {...props}
+    className="min-h-11 rounded-xl bg-sky-700 px-6 py-3 text-base font-semibold text-white shadow-sm transition duration-200 hover:bg-sky-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-200 disabled:cursor-not-allowed disabled:opacity-60"
+  >
+    {children}
+  </button>
+);
+
+const SecondaryButton = ({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
+  <button
+    {...props}
+    className="min-h-11 rounded-xl border border-slate-300 bg-white px-5 py-3 text-base font-semibold text-slate-700 transition duration-200 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-slate-200 disabled:opacity-50"
+  >
+    {children}
+  </button>
+);
+
+const SurveyCard = ({ children }: { children: ReactNode }) => (
+  <section className="rounded-3xl border border-slate-200/80 bg-white p-6 shadow-sm sm:p-8">{children}</section>
+);
+
 const ProgressHeader = ({ step }: { step: number }) => {
-  if (step === 13) return null;
-  const current = Math.min(step + 1, 13);
-  const progress = (current / 13) * 100;
+  if (step > LAST_FORM_STEP) return null;
+
+  const current = step + 1;
+  const total = LAST_FORM_STEP + 1;
+  const progress = (current / total) * 100;
 
   return (
-    <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/90 backdrop-blur">
-      <div className="mx-auto w-full max-w-4xl px-4 py-4 sm:px-8">
-        <div className="mb-2 flex items-center justify-between text-sm text-slate-600" aria-live="polite">
-          <span className="font-medium">Patientenbefragung</span>
-          <span>Schritt {current} von 13</span>
+    <header className="border-b border-slate-200 bg-white/90 backdrop-blur">
+      <div className="mx-auto w-full max-w-3xl px-4 py-4 sm:px-6">
+        <p className="text-sm font-semibold text-slate-800">Patientenbefragung</p>
+        <div className="mt-2 flex items-center justify-between text-sm text-slate-600" aria-live="polite">
+          <span>Fragefortschritt</span>
+          <span>
+            Frage {current} von {total}
+          </span>
         </div>
-        <div className="h-2 overflow-hidden rounded-full bg-slate-100" aria-hidden="true">
-          <div className="h-full rounded-full bg-blue-600 transition-all duration-300" style={{ width: `${progress}%` }} />
+        <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100" aria-hidden="true">
+          <div className="h-full rounded-full bg-sky-700 transition-all duration-200" style={{ width: `${progress}%` }} />
         </div>
       </div>
     </header>
   );
 };
 
-const StepLayout = ({
-  title,
-  subtitle,
-  children,
-}: {
-  title: string;
-  subtitle?: string;
-  children: ReactNode;
-}) => (
-  <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all duration-200 sm:p-8">
-    <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">{title}</h1>
-    {subtitle ? <p className="mt-2 text-base leading-relaxed text-slate-600">{subtitle}</p> : null}
-    <div className="mt-6 space-y-6">{children}</div>
-  </section>
+const SurveyHero = () => (
+  <div className="space-y-2 px-1 text-slate-700">
+    <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">Ihre Meinung zählt</h1>
+    <p className="text-base leading-relaxed">{INTRO_TEXT}</p>
+    <p className="text-sm text-slate-500">Dauer: ca. 2–4 Minuten.</p>
+  </div>
 );
 
-const RadioCard = ({
-  checked,
-  label,
-  name,
-  value,
-  onChange,
-}: {
-  checked: boolean;
-  label: string;
-  name: string;
-  value: string;
-  onChange: () => void;
-}) => (
+const AutosaveState = ({ savedAt }: { savedAt: Date | null }) => {
+  if (!savedAt) return null;
+  return (
+    <p aria-live="polite" className="flex items-center gap-2 text-sm text-emerald-700">
+      <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 text-xs">✓</span>
+      Gespeichert
+    </p>
+  );
+};
+
+const FieldError = ({ message }: { message?: string }) =>
+  message ? (
+    <p role="alert" className="mt-2 text-sm font-medium text-rose-700">
+      {message}
+    </p>
+  ) : null;
+
+const ChoiceCard = ({ checked, label, description, name, value, onChange, disabled }: ChoiceCardProps) => (
   <label
-    className={`flex cursor-pointer items-center gap-3 rounded-xl border p-4 text-lg transition ${
-      checked ? 'border-blue-600 bg-blue-50 text-blue-900' : 'border-slate-300 hover:border-slate-400'
-    }`}
+    className={`flex min-h-11 cursor-pointer items-start gap-3 rounded-2xl border p-4 text-base transition duration-200 ${
+      checked ? 'border-sky-600 bg-sky-50 text-sky-900' : 'border-slate-200 hover:border-slate-300'
+    } ${disabled ? 'cursor-not-allowed opacity-60' : ''}`}
   >
     <input
-      className="h-5 w-5 accent-blue-600"
+      className="mt-1 h-5 w-5 accent-sky-700"
       type="radio"
       name={name}
       value={value}
       checked={checked}
       onChange={onChange}
+      disabled={disabled}
       aria-label={label}
     />
-    <span>{label}</span>
+    <span>
+      <span className="font-medium">{label}</span>
+      {description ? <span className="mt-1 block text-sm text-slate-600">{description}</span> : null}
+    </span>
   </label>
+);
+
+const StepLayout = ({
+  title,
+  subtitle,
+  helper,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  helper?: ReactNode;
+  children: ReactNode;
+}) => (
+  <SurveyCard>
+    <h2 className="text-xl font-semibold text-slate-900 sm:text-2xl">{title}</h2>
+    {subtitle ? <p className="mt-2 text-base text-slate-600">{subtitle}</p> : null}
+    {helper ? <div className="mt-3">{helper}</div> : null}
+    <div className="mt-6 space-y-5">{children}</div>
+  </SurveyCard>
 );
 
 const LikertQuestionGroup = ({
   questions,
   responses,
+  errors,
   onChange,
 }: {
   questions: LikertQuestion[];
   responses: ResponseState;
+  errors: FormErrorMap;
   onChange: <K extends keyof ResponseState>(key: K, value: ResponseState[K]) => void;
 }) => (
-  <div className="space-y-6">
+  <div className="space-y-4">
     {questions.map((question) => (
-      <fieldset key={question.id} className="space-y-3 rounded-2xl bg-slate-50 p-4 sm:p-5">
-        <legend className="text-lg font-medium text-slate-900">
+      <fieldset key={question.id} className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 sm:p-5">
+        <legend className="mb-3 text-lg font-medium leading-snug text-slate-900">
           {question.number}. {question.text}
         </legend>
-        <div className="grid gap-3 lg:grid-cols-2">
+        <div className="grid gap-3">
           {likertOptions.map((option) => (
-            <RadioCard
+            <ChoiceCard
               key={option}
               checked={responses[question.id] === option}
               label={option}
@@ -294,6 +354,7 @@ const LikertQuestionGroup = ({
             />
           ))}
         </div>
+        <FieldError message={errors[question.id]} />
       </fieldset>
     ))}
   </div>
@@ -301,35 +362,49 @@ const LikertQuestionGroup = ({
 
 const YesNoQuestion = ({
   question,
+  fieldName,
   value,
   onChange,
+  error,
 }: {
   question: string;
+  fieldName: 'q31' | 'q32';
   value: YesNoValue;
   onChange: (next: YesNoValue) => void;
+  error?: string;
 }) => (
-  <fieldset className="space-y-3 rounded-2xl bg-slate-50 p-4 sm:p-5">
-    <legend className="text-lg font-medium text-slate-900">{question}</legend>
+  <fieldset className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 sm:p-5">
+    <legend className="mb-3 text-lg font-medium text-slate-900">{question}</legend>
     <div className="grid gap-3 sm:grid-cols-2">
       {(['Ja', 'Nein'] as const).map((option) => (
-        <RadioCard key={option} checked={value === option} label={option} name={question} value={option} onChange={() => onChange(option)} />
+        <ChoiceCard
+          key={option}
+          checked={value === option}
+          label={option}
+          name={fieldName}
+          value={option}
+          onChange={() => onChange(option)}
+        />
       ))}
     </div>
+    <FieldError message={error} />
   </fieldset>
 );
 
 const GradeQuestion = ({
   value,
   onChange,
+  error,
 }: {
   value: ResponseState['q33'];
   onChange: (next: ResponseState['q33']) => void;
+  error?: string;
 }) => (
-  <fieldset className="space-y-3 rounded-2xl bg-slate-50 p-4 sm:p-5">
-    <legend className="text-lg font-medium text-slate-900">33. Welche Gesamtnote geben Sie der Klinik</legend>
+  <fieldset className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 sm:p-5">
+    <legend className="mb-3 text-lg font-medium text-slate-900">33. Welche Gesamtnote geben Sie der Klinik?</legend>
     <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
       {[1, 2, 3, 4, 5, 6].map((grade) => (
-        <RadioCard
+        <ChoiceCard
           key={grade}
           checked={value === grade}
           label={String(grade)}
@@ -339,79 +414,8 @@ const GradeQuestion = ({
         />
       ))}
     </div>
+    <FieldError message={error} />
   </fieldset>
-);
-
-const TextAreaField = ({ value, onChange }: { value: string; onChange: (value: string) => void }) => (
-  <label className="block space-y-2">
-    <span className="text-lg font-medium text-slate-900">
-      Ihre Wünsche, Anregungen, Beschwerden oder Lob (ggf. auf gesondertem Blatt):
-    </span>
-    <textarea
-      className="min-h-36 w-full rounded-xl border border-slate-300 p-4 text-base focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-      aria-label="Ihre Wünsche, Anregungen, Beschwerden oder Lob"
-    />
-  </label>
-);
-
-const ContactFields = ({
-  state,
-  onChange,
-  errors,
-}: {
-  state: ResponseState;
-  onChange: <K extends keyof ResponseState>(key: K, value: ResponseState[K]) => void;
-  errors: Partial<Record<'contactName' | 'contactPhone' | 'contactAddress', string>>;
-}) => (
-  <div className="space-y-4 rounded-2xl bg-slate-50 p-4 sm:p-5">
-    <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-300 bg-white p-4">
-      <input
-        className="mt-1 h-5 w-5 accent-blue-600"
-        type="checkbox"
-        checked={state.contactRequested}
-        onChange={(event) => onChange('contactRequested', event.target.checked)}
-        aria-label="Ich möchte, dass ein Mitarbeiter des Krankenhauses mit mir Kontakt aufnimmt:"
-      />
-      <span className="text-lg text-slate-900">Ich möchte, dass ein Mitarbeiter des Krankenhauses mit mir Kontakt aufnimmt:</span>
-    </label>
-
-    {state.contactRequested ? (
-      <div className="grid gap-4">
-        <label className="space-y-1">
-          <span className="font-medium text-slate-900">Name, Vorname</span>
-          <input
-            className="w-full rounded-xl border border-slate-300 p-3 text-base focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-            value={state.contactName}
-            onChange={(event) => onChange('contactName', event.target.value)}
-            aria-label="Name, Vorname"
-          />
-          {errors.contactName ? <p className="text-sm text-rose-600">{errors.contactName}</p> : null}
-        </label>
-        <label className="space-y-1">
-          <span className="font-medium text-slate-900">Telefon:</span>
-          <input
-            className="w-full rounded-xl border border-slate-300 p-3 text-base focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-            value={state.contactPhone}
-            onChange={(event) => onChange('contactPhone', event.target.value)}
-            aria-label="Telefon"
-          />
-          {errors.contactPhone ? <p className="text-sm text-rose-600">{errors.contactPhone}</p> : null}
-        </label>
-        <label className="space-y-1">
-          <span className="font-medium text-slate-900">Anschrift:</span>
-          <input
-            className="w-full rounded-xl border border-slate-300 p-3 text-base focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-            value={state.contactAddress}
-            onChange={(event) => onChange('contactAddress', event.target.value)}
-            aria-label="Anschrift"
-          />
-          {errors.contactAddress ? <p className="text-sm text-rose-600">{errors.contactAddress}</p> : null}
-        </label>
-      </div>
-    ) : null}
-  </div>
 );
 
 const ReviewScreen = ({ responses }: { responses: ResponseState }) => {
@@ -420,14 +424,14 @@ const ReviewScreen = ({ responses }: { responses: ResponseState }) => {
     .length;
 
   return (
-    <div className="space-y-4 rounded-2xl bg-slate-50 p-5 text-slate-800">
-      <p className="text-lg font-medium">Bitte prüfen Sie kurz Ihre Angaben.</p>
+    <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-5 text-slate-800">
+      <p className="text-lg font-semibold">Fast geschafft – bitte kurz prüfen:</p>
       <ul className="list-disc space-y-1 pl-5 text-base">
         <li>Station: {responses.station || '—'} | Zimmer: {responses.zimmer || '—'}</li>
         <li>Aufnahmeart: {responses.aufnahmeart.length ? responses.aufnahmeart.join(', ') : '—'}</li>
         <li>Beantwortete Likert-Fragen: {answeredLikert} von 30</li>
         <li>Weitere Antworten/Freitext: {answeredExtras}</li>
-        <li>Kontaktaufnahme: {responses.contactRequested ? 'Ja' : 'Nein'}</li>
+        <li>Kontaktaufnahme gewünscht: {responses.contactRequested ? 'Ja' : 'Nein'}</li>
       </ul>
     </div>
   );
@@ -438,15 +442,19 @@ const SurveyApp = () => {
   const [responses, setResponses] = useState<ResponseState>(initialState);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [contactErrors, setContactErrors] = useState<Partial<Record<'contactName' | 'contactPhone' | 'contactAddress', string>>>({});
+  const [stepErrors, setStepErrors] = useState<FormErrorMap>({});
+  const [savedAt, setSavedAt] = useState<Date | null>(null);
 
+  // Annahme: Die Route /survey bleibt unverändert und das bestehende API-Format von POST /api/survey wird weiterverwendet.
   useEffect(() => {
     const rawData = localStorage.getItem(LOCAL_STORAGE_KEY);
     if (!rawData) return;
+
     try {
       const parsed = JSON.parse(rawData) as { step: number; responses: ResponseState };
-      setStep(Math.min(parsed.step ?? 0, 13));
+      setStep(Math.min(parsed.step ?? 0, LAST_FORM_STEP + 1));
       setResponses({ ...initialState, ...parsed.responses });
+      setSavedAt(new Date());
     } catch {
       localStorage.removeItem(LOCAL_STORAGE_KEY);
     }
@@ -454,11 +462,8 @@ const SurveyApp = () => {
 
   useEffect(() => {
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ step, responses }));
+    setSavedAt(new Date());
   }, [step, responses]);
-
-  const setField = <K extends keyof ResponseState,>(key: K, value: ResponseState[K]) => {
-    setResponses((prev) => ({ ...prev, [key]: value }));
-  };
 
   const groupedQuestions = useMemo(
     () => [
@@ -474,37 +479,65 @@ const SurveyApp = () => {
     [],
   );
 
-  const validateContact = () => {
-    if (!responses.contactRequested) {
-      setContactErrors({});
-      return true;
+  const setField = <K extends keyof ResponseState,>(key: K, value: ResponseState[K]) => {
+    setResponses((prev) => ({ ...prev, [key]: value }));
+    if (stepErrors[key as string]) {
+      setStepErrors((prev) => {
+        const nextErrors = { ...prev };
+        delete nextErrors[key as string];
+        return nextErrors;
+      });
+    }
+  };
+
+  const validateCurrentStep = () => {
+    const errors: FormErrorMap = {};
+
+    if (step === 1) {
+      if (!responses.station.trim()) errors.station = 'Bitte geben Sie Ihre Station an.';
+      if (!responses.zimmer.trim()) errors.zimmer = 'Bitte geben Sie Ihr Zimmer an.';
+      if (!responses.aufnahmeart.length) errors.aufnahmeart = 'Bitte wählen Sie mindestens eine Aufnahmeart aus.';
     }
 
-    const errors: Partial<Record<'contactName' | 'contactPhone' | 'contactAddress', string>> = {};
-    if (!responses.contactName.trim()) errors.contactName = 'Bitte geben Sie Ihren Namen an.';
-    if (!responses.contactPhone.trim()) errors.contactPhone = 'Bitte geben Sie Ihre Telefonnummer an.';
-    if (!responses.contactAddress.trim()) errors.contactAddress = 'Bitte geben Sie Ihre Anschrift an.';
-    setContactErrors(errors);
+    if (step >= 2 && step <= 9) {
+      groupedQuestions[step - 2].forEach((question) => {
+        if (!responses[question.id]) {
+          errors[question.id] = 'Bitte wählen Sie eine Antwort aus.';
+        }
+      });
+    }
+
+    if (step === 10) {
+      if (!responses.q31) errors.q31 = 'Bitte wählen Sie eine Antwort aus.';
+      if (!responses.q32) errors.q32 = 'Bitte wählen Sie eine Antwort aus.';
+      if (!responses.q33) errors.q33 = 'Bitte vergeben Sie eine Gesamtnote.';
+    }
+
+    if (step === 11 && responses.contactRequested) {
+      if (!responses.contactName.trim()) errors.contactName = 'Bitte geben Sie Ihren Namen an.';
+      if (!responses.contactPhone.trim()) errors.contactPhone = 'Bitte geben Sie Ihre Telefonnummer an.';
+      if (!responses.contactAddress.trim()) errors.contactAddress = 'Bitte geben Sie Ihre Anschrift an.';
+    }
+
+    setStepErrors(errors);
     return Object.keys(errors).length === 0;
   };
 
   const next = () => {
-    if (step === 11 && !validateContact()) return;
+    if (step > 0 && !validateCurrentStep()) return;
     setSubmitError(null);
     setStep((prev) => Math.min(prev + 1, LAST_FORM_STEP));
   };
 
   const back = () => {
     setSubmitError(null);
+    setStepErrors({});
     setStep((prev) => Math.max(prev - 1, 0));
   };
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!validateContact()) {
-      setStep(11);
-      return;
-    }
+    if (!validateCurrentStep()) return;
 
     setSubmitting(true);
     setSubmitError(null);
@@ -523,80 +556,82 @@ const SurveyApp = () => {
       }
 
       localStorage.removeItem(LOCAL_STORAGE_KEY);
-      setStep(13);
+      setStep(LAST_FORM_STEP + 1);
     } catch {
-      setSubmitError('Beim Absenden ist ein Fehler aufgetreten. Bitte versuchen Sie es gleich erneut.');
+      setSubmitError('Das Absenden hat leider nicht geklappt. Bitte versuchen Sie es gleich erneut.');
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-900">
+    <main className="min-h-screen bg-slate-100/60 text-slate-900">
       <ProgressHeader step={step} />
-      <div className="mx-auto w-full max-w-4xl px-4 py-6 sm:px-8 sm:py-8">
+      <div className="mx-auto flex w-full max-w-3xl flex-col gap-5 px-4 py-6 sm:px-6 sm:py-8">
+        {step <= LAST_FORM_STEP ? <SurveyHero /> : null}
+
         <form onSubmit={handleSubmit} className="space-y-4">
           {step === 0 ? (
-            <StepLayout title="Patientenbefragung">
-              <p className="whitespace-pre-line text-base leading-relaxed text-slate-700">{INTRO_TEXT}</p>
-              <button
-                type="button"
-                className="w-full rounded-xl bg-blue-600 px-6 py-4 text-lg font-semibold text-white transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-200 sm:w-auto"
-                onClick={next}
-              >
-                Umfrage starten
-              </button>
+            <StepLayout title="Willkommen" subtitle="Ihre Antworten bleiben vertraulich und helfen uns direkt bei Verbesserungen.">
+              <p className="text-base leading-relaxed text-slate-700">
+                Vielen Dank, dass Sie sich kurz Zeit nehmen. Die Umfrage ist bewusst in kurze Schritte aufgeteilt und schnell erledigt.
+              </p>
+              <details className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                <summary className="cursor-pointer font-medium text-slate-700">Hinweis zum Datenschutz</summary>
+                <p className="mt-2">Ihre Angaben werden ausschließlich zur Qualitätsverbesserung genutzt.</p>
+              </details>
             </StepLayout>
           ) : null}
 
           {step === 1 ? (
             <StepLayout
-              title="Auf welcher Station / In welchem Zimmer haben Sie gelegen?"
-              subtitle="Auf welche Weise kamen Sie in unser Krankenhaus?"
+              title="Aufenthaltsdaten"
+              subtitle="Diese Angaben helfen uns, Ihre Rückmeldung besser einzuordnen."
+              helper={<AutosaveState savedAt={savedAt} />}
             >
               <div className="grid gap-4 sm:grid-cols-2">
-                <label className="space-y-1">
-                  <span className="font-medium text-slate-900">Station:</span>
+                <label className="space-y-1" htmlFor="station">
+                  <span className="font-medium text-slate-800">Station</span>
                   <input
-                    className="w-full rounded-xl border border-slate-300 p-3 text-base focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                    id="station"
+                    className="min-h-11 w-full rounded-xl border border-slate-300 px-3 py-3 text-base focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-200"
                     value={responses.station}
                     onChange={(event) => setField('station', event.target.value)}
-                    aria-label="Station"
                   />
+                  <FieldError message={stepErrors.station} />
                 </label>
-                <label className="space-y-1">
-                  <span className="font-medium text-slate-900">Zimmer:</span>
+                <label className="space-y-1" htmlFor="zimmer">
+                  <span className="font-medium text-slate-800">Zimmer</span>
                   <input
-                    className="w-full rounded-xl border border-slate-300 p-3 text-base focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                    id="zimmer"
+                    className="min-h-11 w-full rounded-xl border border-slate-300 px-3 py-3 text-base focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-200"
                     value={responses.zimmer}
                     onChange={(event) => setField('zimmer', event.target.value)}
-                    aria-label="Zimmer"
                   />
+                  <FieldError message={stepErrors.zimmer} />
                 </label>
               </div>
 
-              <fieldset className="space-y-3">
-                <legend className="text-lg font-medium text-slate-900">Auf welche Weise kamen Sie in unser Krankenhaus?</legend>
+              <fieldset className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 sm:p-5">
+                <legend className="mb-3 text-lg font-medium text-slate-900">Wie kamen Sie in unser Krankenhaus?</legend>
                 <div className="grid gap-3 sm:grid-cols-2">
                   {aufnahmearten.map((option) => {
                     const checked = responses.aufnahmeart.includes(option);
                     return (
                       <label
                         key={option}
-                        className={`flex cursor-pointer items-center gap-3 rounded-xl border p-4 text-base transition ${
-                          checked ? 'border-blue-600 bg-blue-50 text-blue-900' : 'border-slate-300 hover:border-slate-400'
+                        className={`flex min-h-11 cursor-pointer items-start gap-3 rounded-2xl border p-4 text-base transition duration-200 ${
+                          checked ? 'border-sky-600 bg-sky-50 text-sky-900' : 'border-slate-200 hover:border-slate-300'
                         }`}
                       >
                         <input
                           type="checkbox"
                           checked={checked}
-                          className="h-5 w-5 accent-blue-600"
+                          className="mt-1 h-5 w-5 accent-sky-700"
                           onChange={() =>
                             setField(
                               'aufnahmeart',
-                              checked
-                                ? responses.aufnahmeart.filter((item) => item !== option)
-                                : [...responses.aufnahmeart, option],
+                              checked ? responses.aufnahmeart.filter((item) => item !== option) : [...responses.aufnahmeart, option],
                             )
                           }
                           aria-label={option}
@@ -606,84 +641,136 @@ const SurveyApp = () => {
                     );
                   })}
                 </div>
+                <FieldError message={stepErrors.aufnahmeart} />
               </fieldset>
             </StepLayout>
           ) : null}
 
           {step >= 2 && step <= 9 ? (
             <StepLayout
-              title={`Bewertung (Fragen ${groupedQuestions[step - 2][0].number}–${groupedQuestions[step - 2][groupedQuestions[step - 2].length - 1].number})`}
+              title={`Bewertung der Versorgung (${groupedQuestions[step - 2][0].number}–${groupedQuestions[step - 2][groupedQuestions[step - 2].length - 1].number})`}
+              subtitle="Bitte bewerten Sie kurz nach Ihrem persönlichen Eindruck."
+              helper={<AutosaveState savedAt={savedAt} />}
             >
-              <LikertQuestionGroup questions={groupedQuestions[step - 2]} responses={responses} onChange={setField} />
+              <LikertQuestionGroup questions={groupedQuestions[step - 2]} responses={responses} errors={stepErrors} onChange={setField} />
             </StepLayout>
           ) : null}
 
           {step === 10 ? (
-            <StepLayout title="Weitere Bewertung">
+            <StepLayout title="Gesamteindruck" subtitle="Fast geschafft – nur noch drei kurze Antworten." helper={<AutosaveState savedAt={savedAt} />}>
               <YesNoQuestion
                 question="31. Würden Sie sich wieder für unser Haus entscheiden?"
+                fieldName="q31"
                 value={responses.q31}
                 onChange={(nextValue) => setField('q31', nextValue)}
+                error={stepErrors.q31}
               />
               <YesNoQuestion
-                question="32. Würden Sie unser Haus weiter empfehlen?"
+                question="32. Würden Sie unser Haus weiterempfehlen?"
+                fieldName="q32"
                 value={responses.q32}
                 onChange={(nextValue) => setField('q32', nextValue)}
+                error={stepErrors.q32}
               />
-              <GradeQuestion value={responses.q33} onChange={(nextValue) => setField('q33', nextValue)} />
+              <GradeQuestion value={responses.q33} onChange={(nextValue) => setField('q33', nextValue)} error={stepErrors.q33} />
             </StepLayout>
           ) : null}
 
           {step === 11 ? (
-            <StepLayout title="Abschluss">
-              <TextAreaField value={responses.freitext} onChange={(value) => setField('freitext', value)} />
-              <ContactFields state={responses} onChange={setField} errors={contactErrors} />
+            <StepLayout title="Ihr Feedback" subtitle="Optional: Teilen Sie uns mit, was wir noch besser machen können.">
+              <label className="block space-y-2" htmlFor="freitext">
+                <span className="text-base font-medium text-slate-900">Wünsche, Anregungen, Beschwerden oder Lob</span>
+                <textarea
+                  id="freitext"
+                  className="min-h-36 w-full rounded-xl border border-slate-300 p-4 text-base focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-200"
+                  value={responses.freitext}
+                  onChange={(event) => setField('freitext', event.target.value)}
+                />
+              </label>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 sm:p-5">
+                <label className="flex cursor-pointer items-start gap-3 rounded-xl bg-white p-4">
+                  <input
+                    className="mt-1 h-5 w-5 accent-sky-700"
+                    type="checkbox"
+                    checked={responses.contactRequested}
+                    onChange={(event) => setField('contactRequested', event.target.checked)}
+                    aria-label="Kontaktaufnahme gewünscht"
+                  />
+                  <span className="text-base text-slate-800">Ich wünsche eine Kontaktaufnahme durch das Krankenhaus.</span>
+                </label>
+
+                {responses.contactRequested ? (
+                  <div className="mt-4 grid gap-4">
+                    <label className="space-y-1" htmlFor="contact-name">
+                      <span className="font-medium text-slate-800">Name, Vorname</span>
+                      <input
+                        id="contact-name"
+                        className="min-h-11 w-full rounded-xl border border-slate-300 px-3 py-3 text-base focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-200"
+                        value={responses.contactName}
+                        onChange={(event) => setField('contactName', event.target.value)}
+                      />
+                      <FieldError message={stepErrors.contactName} />
+                    </label>
+                    <label className="space-y-1" htmlFor="contact-phone">
+                      <span className="font-medium text-slate-800">Telefon</span>
+                      <input
+                        id="contact-phone"
+                        className="min-h-11 w-full rounded-xl border border-slate-300 px-3 py-3 text-base focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-200"
+                        value={responses.contactPhone}
+                        onChange={(event) => setField('contactPhone', event.target.value)}
+                      />
+                      <FieldError message={stepErrors.contactPhone} />
+                    </label>
+                    <label className="space-y-1" htmlFor="contact-address">
+                      <span className="font-medium text-slate-800">Anschrift</span>
+                      <input
+                        id="contact-address"
+                        className="min-h-11 w-full rounded-xl border border-slate-300 px-3 py-3 text-base focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-200"
+                        value={responses.contactAddress}
+                        onChange={(event) => setField('contactAddress', event.target.value)}
+                      />
+                      <FieldError message={stepErrors.contactAddress} />
+                    </label>
+                  </div>
+                ) : null}
+              </div>
             </StepLayout>
           ) : null}
 
           {step === 12 ? (
-            <StepLayout title="Bitte überprüfen" subtitle="Sie können jetzt absenden oder vorher noch einmal zurückgehen.">
+            <StepLayout title="Abschluss" subtitle="Ein Klick noch, dann ist alles erledigt.">
               <ReviewScreen responses={responses} />
-              {submitError ? <p className="rounded-xl bg-rose-50 p-4 text-rose-700">{submitError}</p> : null}
+              {submitError ? (
+                <p className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-rose-700" role="alert">
+                  {submitError}
+                </p>
+              ) : null}
             </StepLayout>
           ) : null}
 
           {step === 13 ? (
-            <StepLayout title="Vielen Dank!" subtitle="Ihre Angaben wurden erfolgreich übermittelt.">
-              <p className="text-lg text-slate-700">
-                Wir bedanken uns für Ihre Mitarbeit und wünschen Ihnen eine gute Besserung.
+            <StepLayout title="Vielen Dank!" subtitle="Ihre Angaben wurden sicher übermittelt.">
+              <p className="text-base leading-relaxed text-slate-700">
+                Danke für Ihre Unterstützung. Ihre Rückmeldung fließt direkt in die Verbesserung unserer Behandlung ein.
               </p>
             </StepLayout>
           ) : null}
 
-          {step <= 12 ? (
+          {step <= LAST_FORM_STEP ? (
             <nav className="flex flex-wrap items-center justify-between gap-3">
-              <button
-                type="button"
-                className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-base font-semibold text-slate-800 transition hover:bg-slate-50 focus:outline-none focus:ring-4 focus:ring-slate-200 disabled:opacity-50"
-                onClick={back}
-                disabled={step === 0 || submitting}
-              >
+              <SecondaryButton type="button" onClick={back} disabled={step === 0 || submitting}>
                 Zurück
-              </button>
+              </SecondaryButton>
 
-              {step < 12 ? (
-                <button
-                  type="button"
-                  className="rounded-xl bg-blue-600 px-6 py-3 text-base font-semibold text-white transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-200 disabled:opacity-50"
-                  onClick={next}
-                  disabled={submitting}
-                >
+              {step < LAST_FORM_STEP ? (
+                <PrimaryButton type="button" onClick={next} disabled={submitting}>
                   Weiter
-                </button>
+                </PrimaryButton>
               ) : (
-                <button
-                  type="submit"
-                  className="rounded-xl bg-blue-600 px-6 py-3 text-base font-semibold text-white transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-200 disabled:cursor-not-allowed disabled:opacity-60"
-                  disabled={submitting}
-                >
-                  {submitting ? 'Wird gesendet...' : 'Absenden'}
-                </button>
+                <PrimaryButton type="submit" disabled={submitting} aria-busy={submitting}>
+                  {submitting ? 'Wird gesendet…' : 'Jetzt abschließen'}
+                </PrimaryButton>
               )}
             </nav>
           ) : null}
