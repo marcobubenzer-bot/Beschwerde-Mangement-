@@ -4,7 +4,7 @@ export type LucideProps = SVGProps<SVGSVGElement> & {
   size?: number | string;
 };
 
-const baseProps = (props: LucideProps) => {
+const baseProps = (props: LucideProps): SVGProps<SVGSVGElement> => {
   const { size = 24, ...rest } = props;
   return {
     width: size,
@@ -13,8 +13,8 @@ const baseProps = (props: LucideProps) => {
     fill: 'none',
     stroke: 'currentColor',
     strokeWidth: 2,
-    strokeLinecap: 'round',
-    strokeLinejoin: 'round',
+    strokeLinecap: 'round' as const,
+    strokeLinejoin: 'round' as const,
     ...rest,
   };
 };
