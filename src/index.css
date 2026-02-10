@@ -1491,3 +1491,49 @@ textarea:focus-visible {
     align-items: flex-start;
   }
 }
+
+.stats-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+.aufnahmeart-fieldset {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  min-height: 100%;
+}
+
+.aufnahmeart-fieldset legend {
+  font-weight: 600;
+  padding: 0 4px;
+}
+
+.aufnahmeart-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
+}
+
+.stats-chart-card,
+.stats-small-chart-card {
+  height: auto;
+}
+
+@media (max-width: 768px) {
+  .content {
+    padding: 16px;
+  }
+
+  .card {
+    padding: 16px;
+  }
+
+  .data-table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+}
