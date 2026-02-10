@@ -1,0 +1,66 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum LikertOption {
+  SEHR_SCHLECHT
+  SCHLECHT
+  MITTEL
+  GUT
+  SEHR_GUT
+}
+
+model SurveyResponse {
+  id                 String               @id @default(cuid())
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  station            String
+  zimmer             String
+  aufnahmeart        String[]
+  q31                String?
+  q32                String?
+  q33                Int?
+  freitext           String?
+  contactRequested   Boolean              @default(false)
+  contactName        String?
+  contactEmail       String?
+  contactPhone       String?
+  clientIp           String?
+  userAgent          String?
+  likertAnswers      SurveyLikertAnswer[]
+  complaints         SurveyComplaint[]
+
+  @@index([createdAt])
+  @@index([station, createdAt])
+}
+
+model SurveyLikertAnswer {
+  id         String        @id @default(cuid())
+  responseId String
+  questionNo Int
+  option     LikertOption
+  score      Int
+  response   SurveyResponse @relation(fields: [responseId], references: [id], onDelete: Cascade)
+
+  @@unique([responseId, questionNo])
+  @@index([responseId])
+  @@index([questionNo])
+  @@index([responseId, questionNo])
+}
+
+model SurveyComplaint {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  responseId  String?
+  description String?
+  status      String?  @default("OPEN")
+  response    SurveyResponse? @relation(fields: [responseId], references: [id], onDelete: SetNull)
+
+  @@index([responseId])
+}
