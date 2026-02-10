@@ -1,4 +1,7 @@
-import { FormEvent, ReactNode, useEffect, useMemo, useState } from 'react';
+import { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import { surveyRepository } from '../storage/surveyRepository';
+import { AdmissionOption, SurveyResponse } from '../types/survey';
+import { logEvent } from '../utils/logger';
 
 type LikertValue =
   | 'Sehr gut / sehr zufrieden'
@@ -444,8 +447,9 @@ const SurveyApp = () => {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [stepErrors, setStepErrors] = useState<FormErrorMap>({});
   const [savedAt, setSavedAt] = useState<Date | null>(null);
+  const submitLockRef = useRef(false);
 
-  // Annahme: Die Route /survey bleibt unverändert und das bestehende API-Format von POST /api/survey wird weiterverwendet.
+  // Fortschritt und Antworten werden lokal zwischengespeichert, bis ein valider Abschluss erfolgt.
   useEffect(() => {
     const rawData = localStorage.getItem(LOCAL_STORAGE_KEY);
     if (!rawData) return;
@@ -537,30 +541,62 @@ const SurveyApp = () => {
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
+    if (submitLockRef.current) {
+      logEvent('warn', 'Survey submit ignored because a submit is already in progress.');
+      return;
+    }
+
     if (!validateCurrentStep()) return;
 
+    submitLockRef.current = true;
     setSubmitting(true);
     setSubmitError(null);
 
-    try {
-      const response = await fetch('/api/survey', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(responses),
-      });
+    const toSurveyResponse = (formData: ResponseState): SurveyResponse => {
+      const answers = likertQuestions.reduce<SurveyResponse['answers']>((acc, question) => {
+        const value = formData[question.id];
+        if (value) {
+          acc[question.id] = value;
+        }
+        return acc;
+      }, {});
 
-      if (!response.ok) {
-        throw new Error('submit failed');
-      }
+      const trimmedText = formData.freitext.trim();
+
+      return {
+        id: crypto.randomUUID(),
+        createdAt: new Date().toISOString(),
+        station: formData.station.trim() || undefined,
+        zimmer: formData.zimmer.trim() || undefined,
+        aufnahmeart: formData.aufnahmeart as AdmissionOption[],
+        answers,
+        q31: formData.q31 ?? undefined,
+        q32: formData.q32 ?? undefined,
+        q33: formData.q33,
+        freitext: trimmedText || undefined,
+        contactRequested: formData.contactRequested,
+        contactName: formData.contactRequested ? formData.contactName.trim() || null : null,
+        contactPhone: formData.contactRequested ? formData.contactPhone.trim() || null : null,
+        contactAddress: formData.contactRequested ? formData.contactAddress.trim() || null : null,
+      };
+    };
+
+    try {
+      const payload = toSurveyResponse(responses);
+      logEvent('info', `Survey submit started for response ${payload.id}.`);
+
+      await surveyRepository.createResponse(payload);
+      logEvent('info', `Survey submit completed for response ${payload.id}.`);
 
       localStorage.removeItem(LOCAL_STORAGE_KEY);
       setStep(LAST_FORM_STEP + 1);
-    } catch {
-      setSubmitError('Das Absenden hat leider nicht geklappt. Bitte versuchen Sie es gleich erneut.');
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : 'Unbekannter Fehler';
+      logEvent('error', `Survey submit failed: ${reason}`);
+      setSubmitError(`Absenden fehlgeschlagen: ${reason}. Bitte versuchen Sie es erneut.`);
     } finally {
       setSubmitting(false);
+      submitLockRef.current = false;
     }
   };
 
