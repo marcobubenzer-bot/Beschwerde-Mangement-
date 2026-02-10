@@ -64,3 +64,22 @@ model SurveyComplaint {
 
   @@index([responseId])
 }
+
+model StatsQueryLog {
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+  method     String
+  path       String
+  query      Json
+  clientIp   String?
+  userAgent  String?
+  statusCode Int
+  durationMs Int
+  station    String?
+  filterFrom DateTime?
+  filterTo   DateTime?
+  aufnahmeart String[]
+
+  @@index([createdAt])
+  @@index([path, createdAt])
+}

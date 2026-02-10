@@ -230,4 +230,27 @@ export const surveyRoutes: FastifyPluginAsync = async (fastify) => {
       meanOfResponseAverages: meanRows[0]?.mean_of_response_averages ?? null,
     };
   });
+
+  fastify.get('/stats/query-logs', async (request, reply) => {
+    const parsed = statsFilterSchema.pick({ from: true, to: true }).safeParse(request.query);
+    if (!parsed.success) {
+      return badRequest(reply, parsed.error.flatten());
+    }
+
+    const logs = await prisma.statsQueryLog.findMany({
+      where: {
+        createdAt: {
+          gte: parsed.data.from ? new Date(parsed.data.from) : undefined,
+          lte: parsed.data.to ? new Date(parsed.data.to) : undefined,
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      take: 100,
+    });
+
+    return logs;
+  });
+
 };

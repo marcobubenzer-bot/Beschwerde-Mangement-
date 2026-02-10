@@ -6,7 +6,7 @@ import SettingsPage from './pages/SettingsPage';
 import StartPage from './pages/StartPage';
 import SurveyPage from './pages/SurveyPage';
 import SurveyThankYouPage from './pages/SurveyThankYouPage';
-import SurveyDashboardPage from './pages/SurveyDashboardPage';
+import StatsDashboardPage from './pages/StatsDashboardPage';
 import SurveyResponsesPage from './pages/SurveyResponsesPage';
 import SurveyResponseDetailPage from './pages/SurveyResponseDetailPage';
 import SurveyComplaintsPage from './pages/SurveyComplaintsPage';
@@ -22,6 +22,7 @@ const App = () => {
       <Route path="/" element={<StartPage />} />
       <Route path="/survey" element={<SurveyPage />} />
       <Route path="/survey/danke" element={<SurveyThankYouPage />} />
+      <Route path="/dashboard" element={<StatsDashboardPage />} />
       <Route
         path="/admin"
         element={
@@ -31,7 +32,7 @@ const App = () => {
         }
       >
         <Route index element={<Navigate to="/admin/dashboard" replace />} />
-        <Route path="dashboard" element={<SurveyDashboardPage />} />
+        <Route path="dashboard" element={<StatsDashboardPage />} />
         <Route path="responses" element={<SurveyResponsesPage />} />
         <Route path="responses/:id" element={<SurveyResponseDetailPage />} />
         <Route path="complaints" element={<SurveyComplaintsPage />} />
