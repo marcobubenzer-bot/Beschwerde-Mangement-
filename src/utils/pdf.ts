@@ -6,6 +6,17 @@ import { formatDate, formatDateTime } from './date';
 
 const DEFAULT_MARGIN = 14;
 
+
+const safeText = (input: unknown): string => {
+  if (input === null || input === undefined) return '';
+  if (typeof input === 'string') return input;
+  return String(input);
+};
+
+const lastTableY = (doc: jsPDF, fallback: number): number => {
+  return (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || fallback;
+};
+
 const blobToDataUrl = (blob: Blob) =>
   new Promise<string>((resolve, reject) => {
     const reader = new FileReader();

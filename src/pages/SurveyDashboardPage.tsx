@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { surveyQuestions } from '../data/surveyQuestions';
 import { surveyRepository } from '../storage/surveyRepository';
-import { SurveyFilters, SurveyResponse } from '../types/survey';
+import { AdmissionOption, SurveyFilters, SurveyResponse } from '../types/survey';
 import { applySurveyFilters, calculateAverageForQuestion } from '../utils/surveyUtils';
 
 const SurveyDashboardPage = () => {
@@ -126,11 +126,21 @@ const SurveyDashboardPage = () => {
           </label>
           <label className="field">
             <span>Aufnahmeart</span>
-            <input
+            <select
               value={filters.aufnahmeart || ''}
-              onChange={(event) => setFilters((prev) => ({ ...prev, aufnahmeart: event.target.value || undefined }))}
-              placeholder="z.B. Notfall"
-            />
+              onChange={(event) =>
+                setFilters((prev) => ({
+                  ...prev,
+                  aufnahmeart: (event.target.value || undefined) as AdmissionOption | undefined,
+                }))
+              }
+            >
+              <option value="">Alle</option>
+              <option value="geplante Aufnahme / Einweisung">geplante Aufnahme / Einweisung</option>
+              <option value="Verlegung aus anderem Krankenhaus">Verlegung aus anderem Krankenhaus</option>
+              <option value="Notfall">Notfall</option>
+              <option value="Kooperationspartner eines Zentrums">Kooperationspartner eines Zentrums</option>
+            </select>
           </label>
         </div>
       </div>

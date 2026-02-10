@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { admissionOptions, surveyQuestions } from '../data/surveyQuestions';
 import { surveyRepository } from '../storage/surveyRepository';
-import { SurveyComplaint, SurveyFilters, SurveyResponse } from '../types/survey';
+import { AdmissionOption, SurveyComplaint, SurveyFilters, SurveyResponse } from '../types/survey';
 import { buildResponsesCsv, downloadCsv, exportResponsesXlsx } from '../utils/exporters';
 import { applySurveyFilters, calculateAverageForQuestion } from '../utils/surveyUtils';
 
@@ -24,7 +24,9 @@ const SurveyResponsesPage = () => {
   );
 
   const aggregates = useMemo(() => {
-    return surveyQuestions.map((question) => [question.id, calculateAverageForQuestion(filtered, question.id)] as const);
+    return surveyQuestions.map(
+      (question) => [String(question.id), calculateAverageForQuestion(filtered, question.id)] as [string, number | null]
+    );
   }, [filtered]);
 
   const handleCsvExport = () => {
@@ -82,7 +84,12 @@ const SurveyResponsesPage = () => {
             <span>Aufnahmeart</span>
             <select
               value={filters.aufnahmeart || ''}
-              onChange={(event) => setFilters((prev) => ({ ...prev, aufnahmeart: event.target.value || undefined }))}
+              onChange={(event) =>
+                setFilters((prev) => ({
+                  ...prev,
+                  aufnahmeart: (event.target.value || undefined) as AdmissionOption | undefined,
+                }))
+              }
             >
               <option value="">Alle</option>
               {admissionOptions.map((option) => (

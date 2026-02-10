@@ -1,7 +1,7 @@
 import { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from 'react';
-import { surveyRepository } from '../storage/surveyRepository';
-import { AdmissionOption, SurveyResponse } from '../types/survey';
+import { apiFetch } from '../api/client';
 import { logEvent } from '../utils/logger';
+import { likertLabelToScore } from '../utils/likert';
 
 type LikertValue =
   | 'Sehr gut / sehr zufrieden'
@@ -13,45 +13,51 @@ type LikertValue =
 type YesNoValue = 'Ja' | 'Nein' | null;
 
 type LikertQuestion = {
-  id: `q${number}`;
+  id: LikertKey;
   number: number;
   text: string;
 };
+
+const likertKeys = [
+  'q1',
+  'q2',
+  'q3',
+  'q4',
+  'q5',
+  'q6',
+  'q7',
+  'q8',
+  'q9',
+  'q10',
+  'q11',
+  'q12',
+  'q13',
+  'q14',
+  'q15',
+  'q16',
+  'q17',
+  'q18',
+  'q19',
+  'q20',
+  'q21',
+  'q22',
+  'q23',
+  'q24',
+  'q25',
+  'q26',
+  'q27',
+  'q28',
+  'q29',
+  'q30',
+] as const;
+
+type LikertKey = (typeof likertKeys)[number];
 
 type ResponseState = {
   station: string;
   zimmer: string;
   aufnahmeart: string[];
-  q1: LikertValue | null;
-  q2: LikertValue | null;
-  q3: LikertValue | null;
-  q4: LikertValue | null;
-  q5: LikertValue | null;
-  q6: LikertValue | null;
-  q7: LikertValue | null;
-  q8: LikertValue | null;
-  q9: LikertValue | null;
-  q10: LikertValue | null;
-  q11: LikertValue | null;
-  q12: LikertValue | null;
-  q13: LikertValue | null;
-  q14: LikertValue | null;
-  q15: LikertValue | null;
-  q16: LikertValue | null;
-  q17: LikertValue | null;
-  q18: LikertValue | null;
-  q19: LikertValue | null;
-  q20: LikertValue | null;
-  q21: LikertValue | null;
-  q22: LikertValue | null;
-  q23: LikertValue | null;
-  q24: LikertValue | null;
-  q25: LikertValue | null;
-  q26: LikertValue | null;
-  q27: LikertValue | null;
-  q28: LikertValue | null;
-  q29: LikertValue | null;
-  q30: LikertValue | null;
+} & Record<LikertKey, LikertValue | null> & {
   q31: YesNoValue;
   q32: YesNoValue;
   q33: 1 | 2 | 3 | 4 | 5 | 6 | null;
@@ -84,6 +90,13 @@ const aufnahmearten = [
   'Notfall',
   'Kooperationspartner eines Zentrums',
 ] as const;
+
+const aufnahmeartToApiValue: Record<(typeof aufnahmearten)[number], string> = {
+  'geplante Aufnahme / Einweisung': 'planned',
+  'Verlegung aus anderem Krankenhaus': 'transfer',
+  Notfall: 'emergency',
+  'Kooperationspartner eines Zentrums': 'partner',
+};
 
 const likertOptions: LikertValue[] = [
   'Sehr gut / sehr zufrieden',
@@ -520,7 +533,6 @@ const SurveyApp = () => {
     if (step === 11 && responses.contactRequested) {
       if (!responses.contactName.trim()) errors.contactName = 'Bitte geben Sie Ihren Namen an.';
       if (!responses.contactPhone.trim()) errors.contactPhone = 'Bitte geben Sie Ihre Telefonnummer an.';
-      if (!responses.contactAddress.trim()) errors.contactAddress = 'Bitte geben Sie Ihre Anschrift an.';
     }
 
     setStepErrors(errors);
@@ -552,41 +564,32 @@ const SurveyApp = () => {
     setSubmitting(true);
     setSubmitError(null);
 
-    const toSurveyResponse = (formData: ResponseState): SurveyResponse => {
-      const answers = likertQuestions.reduce<SurveyResponse['answers']>((acc, question) => {
-        const value = formData[question.id];
-        if (value) {
-          acc[question.id] = value;
-        }
-        return acc;
-      }, {});
-
-      const trimmedText = formData.freitext.trim();
-
-      return {
-        id: crypto.randomUUID(),
-        createdAt: new Date().toISOString(),
-        station: formData.station.trim() || undefined,
-        zimmer: formData.zimmer.trim() || undefined,
-        aufnahmeart: formData.aufnahmeart as AdmissionOption[],
-        answers,
-        q31: formData.q31 ?? undefined,
-        q32: formData.q32 ?? undefined,
-        q33: formData.q33,
-        freitext: trimmedText || undefined,
-        contactRequested: formData.contactRequested,
-        contactName: formData.contactRequested ? formData.contactName.trim() || null : null,
-        contactPhone: formData.contactRequested ? formData.contactPhone.trim() || null : null,
-        contactAddress: formData.contactRequested ? formData.contactAddress.trim() || null : null,
-      };
-    };
-
     try {
-      const payload = toSurveyResponse(responses);
-      logEvent('info', `Survey submit started for response ${payload.id}.`);
+      const likertPayload = likertKeys.reduce<Record<LikertKey, number>>((acc, key) => {
+        const value = responses[key] ?? 'trifft nicht zu / keine Angabe';
+        acc[key] = likertLabelToScore(value);
+        return acc;
+      }, {} as Record<LikertKey, number>);
 
-      await surveyRepository.createResponse(payload);
-      logEvent('info', `Survey submit completed for response ${payload.id}.`);
+      const payload = {
+        station: responses.station.trim(),
+        zimmer: responses.zimmer.trim(),
+        aufnahmeart: responses.aufnahmeart
+          .map((option) => aufnahmeartToApiValue[option as (typeof aufnahmearten)[number]])
+          .filter(Boolean),
+        q31: responses.q31 === 'Ja' ? 'JA' : responses.q31 === 'Nein' ? 'NEIN' : 'KEINE_ANGABE',
+        q33: responses.q33,
+        freitext: responses.freitext.trim() || undefined,
+        contactRequested: responses.contactRequested,
+        contactName: responses.contactRequested ? responses.contactName.trim() || undefined : undefined,
+        contactPhone: responses.contactRequested ? responses.contactPhone.trim() || undefined : undefined,
+        likert: likertPayload,
+      };
+
+      logEvent('info', 'Survey submit started.');
+
+      await apiFetch('/survey', { method: 'POST', body: JSON.stringify(payload) });
+      logEvent('info', 'Survey submit completed.');
 
       localStorage.removeItem(LOCAL_STORAGE_KEY);
       setStep(LAST_FORM_STEP + 1);
